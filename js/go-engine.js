@@ -176,15 +176,19 @@ class GoGame {
   }
 
   computeScore() {
+    // Japanese-style territory scoring: territory (empty points surrounded
+    // by one color) + prisoners. A dead stone counts twice for the
+    // capturing side: once as a prisoner, once as the territory it vacates.
     const effectiveBoard = [...this.board];
-    for (const d of this.deadStones) effectiveBoard[d] = EMPTY;
-
-    const areaCount = { [BLACK]: 0, [WHITE]: 0 };
-    for (let idx = 0; idx < effectiveBoard.length; idx++) {
-      if (effectiveBoard[idx] === BLACK) areaCount[BLACK]++;
-      else if (effectiveBoard[idx] === WHITE) areaCount[WHITE]++;
+    let deadBlack = 0;
+    let deadWhite = 0;
+    for (const d of this.deadStones) {
+      if (this.board[d] === BLACK) deadBlack++;
+      else if (this.board[d] === WHITE) deadWhite++;
+      effectiveBoard[d] = EMPTY;
     }
 
+    const territory = { [BLACK]: 0, [WHITE]: 0 };
     const visited = new Array(effectiveBoard.length).fill(false);
     for (let idx = 0; idx < effectiveBoard.length; idx++) {
       if (effectiveBoard[idx] === EMPTY && !visited[idx]) {
@@ -207,16 +211,23 @@ class GoGame {
         }
         if (borders.size === 1) {
           const owner = [...borders][0];
-          areaCount[owner] += region.length;
+          territory[owner] += region.length;
         }
       }
     }
 
-    const blackScore = areaCount[BLACK];
-    const whiteScore = areaCount[WHITE] + this.komi;
+    const blackPrisoners = this.captures[BLACK] + deadWhite;
+    const whitePrisoners = this.captures[WHITE] + deadBlack;
+
+    const blackScore = territory[BLACK] + blackPrisoners;
+    const whiteScore = territory[WHITE] + whitePrisoners + this.komi;
     return {
       blackScore,
       whiteScore,
+      blackTerritory: territory[BLACK],
+      whiteTerritory: territory[WHITE],
+      blackPrisoners,
+      whitePrisoners,
       winner: blackScore > whiteScore ? BLACK : WHITE,
       diff: Math.abs(blackScore - whiteScore),
     };

@@ -60,7 +60,19 @@
     </div>
 
     <div id="scoring-banner" class="hidden">
-      <p>Tap groups to mark them dead, then finish scoring.</p>
+      <p>Tap groups to mark them dead. Score updates live.</p>
+      <div id="live-score">
+        <div class="live-score-side">
+          <i class="dot black"></i>
+          <span id="live-score-black">0</span>
+          <small id="live-detail-black"></small>
+        </div>
+        <div class="live-score-side">
+          <i class="dot white"></i>
+          <span id="live-score-white">0</span>
+          <small id="live-detail-white"></small>
+        </div>
+      </div>
       <div class="scoring-actions">
         <button id="resume-btn" class="ctrl-btn">Resume Play</button>
         <button id="finish-scoring-btn" class="primary-btn">Finish Scoring</button>

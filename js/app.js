@@ -24,6 +24,10 @@
   const scoringBanner = document.getElementById('scoring-banner');
   const resumeBtn = document.getElementById('resume-btn');
   const finishScoringBtn = document.getElementById('finish-scoring-btn');
+  const liveScoreBlack = document.getElementById('live-score-black');
+  const liveScoreWhite = document.getElementById('live-score-white');
+  const liveDetailBlack = document.getElementById('live-detail-black');
+  const liveDetailWhite = document.getElementById('live-detail-white');
 
   const resultModal = document.getElementById('result-modal');
   const resultTitle = document.getElementById('result-title');
@@ -290,6 +294,7 @@
     if (game.scoringPhase) {
       game.toggleDeadGroup(row, col);
       render();
+      updateLiveScore();
       return;
     }
 
@@ -324,8 +329,18 @@
     updateHud();
     if (game.scoringPhase) {
       scoringBanner.classList.remove('hidden');
+      updateLiveScore();
     }
   });
+
+  function updateLiveScore() {
+    if (!game) return;
+    const s = game.computeScore();
+    liveScoreBlack.textContent = s.blackScore.toFixed(1);
+    liveScoreWhite.textContent = s.whiteScore.toFixed(1);
+    liveDetailBlack.textContent = `${s.blackTerritory} terr + ${s.blackPrisoners} pris`;
+    liveDetailWhite.textContent = `${s.whiteTerritory} terr + ${s.whitePrisoners} pris + ${game.komi} komi`;
+  }
 
   resignBtn.addEventListener('click', () => {
     if (!game || game.gameOver) return;
@@ -380,7 +395,8 @@
       const winnerName = s.winner === BLACK ? 'Black' : 'White';
       resultTitle.textContent = `${winnerName} wins by ${s.diff.toFixed(1)}`;
       resultDetail.textContent =
-        `Black: ${s.blackScore.toFixed(1)}\nWhite: ${s.whiteScore.toFixed(1)} (incl. komi ${game.komi})`;
+        `Black: ${s.blackScore.toFixed(1)} (${s.blackTerritory} terr + ${s.blackPrisoners} pris)\n` +
+        `White: ${s.whiteScore.toFixed(1)} (${s.whiteTerritory} terr + ${s.whitePrisoners} pris + ${game.komi} komi)`;
     }
     resultModal.classList.remove('hidden');
   }

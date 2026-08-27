@@ -299,6 +299,29 @@ html, body {
   color: var(--text-dim);
   text-align: center;
 }
+
+#live-score {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+}
+
+.live-score-side {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.live-score-side span {
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-score-side small {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+}
 .scoring-actions {
   display: flex;
   gap: 10px;
