@@ -8,6 +8,11 @@
   const startBtn = document.getElementById('start-btn');
   const learnBtn = document.getElementById('learn-btn');
 
+  const opponentButtons = [...document.querySelectorAll('.opt-btn[data-opponent]')];
+  const colorButtons = [...document.querySelectorAll('.opt-btn[data-color]')];
+  const aiOptions = document.getElementById('ai-options');
+  const handicapSelect = document.getElementById('handicap-select');
+
   const canvas = document.getElementById('board-canvas');
   const boardWrap = document.getElementById('board-wrap');
   const mainBoardView = createBoardView(canvas, { container: boardWrap });
@@ -47,6 +52,16 @@
   let selectedSize = null;
   let liveScoreVisible = false;
 
+  // Computer opponent state. aiColor is null in a two-player game.
+  let vsComputer = false;
+  let playerColor = BLACK;
+  let aiColor = null;
+  let handicap = 0;
+  let aiThinking = false;
+  let aiTimer = null;
+
+  const AI_DELAY_MS = 350; // the AI answers in ~8ms; a beat makes it feel considered
+
   // ---------- Setup screen ----------
 
   sizeButtons.forEach((btn) => {
@@ -56,6 +71,35 @@
       selectedSize = parseInt(btn.dataset.size, 10);
       startBtn.disabled = false;
     });
+  });
+
+  opponentButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      opponentButtons.forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      vsComputer = btn.dataset.opponent === 'ai';
+      aiOptions.classList.toggle('hidden', !vsComputer);
+      if (!vsComputer) {
+        handicapSelect.value = '0';
+        handicap = 0;
+        komiInput.value = '6.5';
+      }
+    });
+  });
+
+  colorButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      colorButtons.forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      playerColor = btn.dataset.color === 'white' ? WHITE : BLACK;
+    });
+  });
+
+  handicapSelect.addEventListener('change', () => {
+    handicap = parseInt(handicapSelect.value, 10) || 0;
+    // Handicap games traditionally use a token komi instead of the full 6.5,
+    // since Black's compensation is the head start itself.
+    komiInput.value = handicap > 0 ? '0.5' : '6.5';
   });
 
   startBtn.addEventListener('click', () => {
@@ -73,6 +117,15 @@
 
   function startGame(size, komi) {
     game = new GoGame(size, komi);
+    aiColor = vsComputer ? (playerColor === BLACK ? WHITE : BLACK) : null;
+    cancelPendingAI();
+
+    // Handicap: Black's stones go down first and White opens the game.
+    if (handicap > 0) {
+      const stones = GoAI.handicapPoints(size, handicap);
+      if (stones.length) game.loadPosition(stones, WHITE);
+    }
+
     setupScreen.classList.remove('active');
     gameScreen.classList.add('active');
     resultModal.classList.add('hidden');
@@ -85,13 +138,57 @@
       mainBoardView.resize(game.size);
       renderMain();
       updateHud();
+      maybeStartAITurn();
     });
+  }
+
+  // ---------- Computer opponent ----------
+
+  function isAITurn() {
+    return !!game && aiColor !== null && !game.gameOver && !game.scoringPhase &&
+      game.currentPlayer === aiColor;
+  }
+
+  function cancelPendingAI() {
+    if (aiTimer !== null) { clearTimeout(aiTimer); aiTimer = null; }
+    aiThinking = false;
+  }
+
+  function maybeStartAITurn() {
+    if (!isAITurn() || aiThinking) return;
+    aiThinking = true;
+    updateHud();
+    aiTimer = setTimeout(() => {
+      aiTimer = null;
+      // The game may have been abandoned or undone while we waited.
+      if (!isAITurn()) { aiThinking = false; updateHud(); return; }
+
+      const move = GoAI.chooseMove(game, aiColor);
+      if (move === null) {
+        game.pass();
+      } else {
+        const result = game.playMove(move.row, move.col);
+        // chooseMove screens for superko, but never trust it blindly: if the
+        // engine rejects the move, passing is always legal and safe.
+        if (!result.legal) game.pass();
+      }
+
+      aiThinking = false;
+      renderMain();
+      updateHud();
+      updateLiveScorePanel();
+      if (game.scoringPhase) {
+        scoringBanner.classList.remove('hidden');
+        updateLiveScore();
+      }
+    }, AI_DELAY_MS);
   }
 
   function backToSetup() {
     const confirmed = !game || game.gameOver || game.moveLog.length === 0 ||
       window.confirm('End the current game and return to setup?');
     if (!confirmed) return;
+    cancelPendingAI();
     game = null;
     gameScreen.classList.remove('active');
     setupScreen.classList.add('active');
@@ -119,6 +216,7 @@
 
   mainBoardView.onIntersectionClick((row, col) => {
     if (!game || game.gameOver) return;
+    if (aiThinking || isAITurn()) return; // not your turn
 
     if (game.scoringPhase) {
       game.toggleDeadGroup(row, col);
@@ -133,6 +231,7 @@
       renderMain();
       updateHud();
       updateLiveScorePanel();
+      maybeStartAITurn();
     }
   });
 
@@ -146,7 +245,11 @@
 
   undoBtn.addEventListener('click', () => {
     if (!game) return;
+    cancelPendingAI();
     game.undo();
+    // Against the computer, take back its reply too so the board returns to
+    // the player's own turn rather than handing them the AI's position.
+    if (aiColor !== null && game.currentPlayer === aiColor) game.undo();
     mainBoardView.resize(game.size);
     renderMain();
     updateHud();
@@ -155,6 +258,7 @@
 
   passBtn.addEventListener('click', () => {
     if (!game || game.gameOver) return;
+    if (aiThinking || isAITurn()) return;
     game.pass();
     renderMain();
     updateHud();
@@ -162,6 +266,8 @@
     if (game.scoringPhase) {
       scoringBanner.classList.remove('hidden');
       updateLiveScore();
+    } else {
+      maybeStartAITurn();
     }
   });
 
@@ -210,6 +316,7 @@
     renderMain();
     updateHud();
     updateLiveScorePanel();
+    maybeStartAITurn();
   });
 
   finishScoringBtn.addEventListener('click', () => {
@@ -231,6 +338,7 @@
   });
 
   function backToSetupForce() {
+    cancelPendingAI();
     game = null;
     gameScreen.classList.remove('active');
     setupScreen.classList.add('active');
@@ -265,14 +373,19 @@
       turnText.textContent = 'Game over';
     } else if (game.scoringPhase) {
       turnText.textContent = 'Scoring';
+    } else if (aiThinking) {
+      turnText.textContent = 'Computer thinking…';
+    } else if (aiColor !== null) {
+      turnText.textContent = game.currentPlayer === aiColor ? 'Computer’s move' : 'Your move';
     } else {
       turnText.textContent = (isBlack ? 'Black' : 'White') + ' to move';
     }
     capturesBlackEl.textContent = game.captures[BLACK];
     capturesWhiteEl.textContent = game.captures[WHITE];
 
-    undoBtn.disabled = game.moveLog.length === 0 || game.gameOver;
-    passBtn.disabled = game.gameOver || game.scoringPhase;
+    const awaitingAI = aiThinking || isAITurn();
+    undoBtn.disabled = game.moveLog.length === 0 || game.gameOver || awaitingAI;
+    passBtn.disabled = game.gameOver || game.scoringPhase || awaitingAI;
     resignBtn.disabled = game.gameOver;
 
     if (game.scoringPhase) {

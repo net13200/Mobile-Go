@@ -137,7 +137,8 @@ html, body {
   color: var(--accent);
 }
 
-#komi-input {
+#komi-input,
+#handicap-select {
   width: 100%;
   padding: 12px 14px;
   border-radius: 12px;
@@ -145,6 +146,32 @@ html, body {
   background: var(--panel);
   color: var(--text);
   font-size: 1rem;
+}
+
+.two-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.opt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 8px;
+  border-radius: 14px;
+  border: 2px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.opt-btn.selected {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, rgba(224,164,88,0.18), rgba(224,164,88,0.05));
 }
 
 .primary-btn {
@@ -233,7 +260,7 @@ html, body {
   border-radius: 50%;
   display: inline-block;
 }
-.dot.black { background: #111; }
+.dot.black { background: #111; border: 1px solid rgba(255,255,255,0.3); }
 .dot.white { background: #eee; border: 1px solid #999; }
 
 .score-btn {

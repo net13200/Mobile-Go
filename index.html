@@ -28,7 +28,7 @@
   <section id="setup-screen" class="screen active">
     <div class="setup-card">
       <h1>Go</h1>
-      <p class="subtitle">Local two-player match</p>
+      <p class="subtitle">Play a friend or the computer — or learn from scratch</p>
 
       <div class="setup-group">
         <label>Board size</label>
@@ -46,6 +46,34 @@
             <span class="size-tag">Standard</span>
           </button>
         </div>
+      </div>
+
+      <div class="setup-group">
+        <label>Opponent</label>
+        <div class="two-options">
+          <button class="opt-btn selected" data-opponent="human">Two Players</button>
+          <button class="opt-btn" data-opponent="ai">vs Computer</button>
+        </div>
+      </div>
+
+      <div class="setup-group hidden" id="ai-options">
+        <label>You play</label>
+        <div class="two-options">
+          <button class="opt-btn selected" data-color="black"><i class="dot black"></i>Black</button>
+          <button class="opt-btn" data-color="white"><i class="dot white"></i>White</button>
+        </div>
+        <label for="handicap-select">Handicap <span class="hint">(extra Black stones)</span></label>
+        <select id="handicap-select">
+          <option value="0">None</option>
+          <option value="2">2 stones</option>
+          <option value="3">3 stones</option>
+          <option value="4">4 stones</option>
+          <option value="5">5 stones</option>
+          <option value="6">6 stones</option>
+          <option value="7">7 stones</option>
+          <option value="8">8 stones</option>
+          <option value="9">9 stones</option>
+        </select>
       </div>
 
       <div class="setup-group">
@@ -163,6 +191,7 @@
 </div>
 <script src="js/go-engine.js"></script>
 <script src="js/board-view.js"></script>
+<script src="js/go-ai.js"></script>
 <script src="js/app.js"></script>
 <script src="js/tutorial-helpers.js"></script>
 <script src="js/tutorial-content.js"></script>
