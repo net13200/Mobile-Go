@@ -193,7 +193,7 @@
     }
 
     // last move marker
-    if (game.lastMove && !game.scoringPhase) {
+    if (game.lastMove && !game.scoringPhase && !liveScoreVisible) {
       const p = boardToPx(game.lastMove.row, game.lastMove.col);
       ctx.beginPath();
       ctx.arc(p.x, p.y, stoneRadius * 0.32, 0, Math.PI * 2);
@@ -201,8 +201,8 @@
       ctx.fill();
     }
 
-    // scoring overlay: territory preview
-    if (game.scoringPhase) {
+    // territory overlay: during the scoring phase, or as a live mid-game estimate
+    if (game.scoringPhase || liveScoreVisible) {
       drawTerritoryPreview(stoneRadius);
     }
   }
