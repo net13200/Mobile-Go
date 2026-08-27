@@ -4,7 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1c1917">
+<meta name="description" content="Play Go locally against a friend, and learn the game from the ground up.">
 <title>Go</title>
+
+<!-- Installable web app -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+
+<!-- iOS home-screen app: Safari ignores the manifest for these, so they
+     must be declared here or the app opens in a browser tab with a
+     screenshot for an icon. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Go">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -152,5 +167,14 @@
 <script src="js/tutorial-helpers.js"></script>
 <script src="js/tutorial-content.js"></script>
 <script src="js/tutorial.js"></script>
+<script>
+  // Offline support. Needs a secure origin, so it's skipped on file:// —
+  // the app still runs, just without offline caching.
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is optional */ });
+    });
+  }
+</script>
 </body>
 </html>
