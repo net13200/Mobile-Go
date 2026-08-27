@@ -470,6 +470,20 @@ html, body {
   background: var(--panel-border);
 }
 
+.version-link {
+  padding: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  align-self: center;
+}
+.version-link:active {
+  color: var(--text);
+}
+
 /* ---------- Learn / lesson screens ---------- */
 
 .sub-header {
@@ -487,14 +501,45 @@ html, body {
   font-size: 1.1rem;
 }
 
-#learn-screen, #lesson-screen {
+#learn-screen, #lesson-screen, #whats-new-screen {
   flex-direction: column;
 }
 
-#lesson-list {
+#lesson-list, #whats-new-list {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 14px calc(14px + var(--safe-bottom));
+  padding: 14px 14px calc(14px + var(--safe-bottom));
+}
+
+.release-entry {
+  padding: 14px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 2px solid var(--panel-border);
+  background: var(--panel);
+}
+.release-entry h3 {
+  margin: 0 0 3px;
+  font-size: 1rem;
+  color: var(--text);
+}
+.release-entry .release-date {
+  margin: 0 0 10px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+.release-entry ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+.release-entry li {
+  margin-bottom: 4px;
+}
+.release-entry li:last-child {
+  margin-bottom: 0;
 }
 
 .lesson-module-title {

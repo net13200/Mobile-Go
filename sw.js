@@ -2,7 +2,7 @@
 //
 // There is no build step, so bump CACHE_VERSION whenever any cached file
 // changes — that is what makes installed copies pick up a new release.
-const CACHE_VERSION = 'go-v3';
+const CACHE_VERSION = 'go-v4';
 
 // Paths are relative so the app works from a project subpath (e.g. GitHub
 // Pages at /Mobile-Go/) as well as from a domain root.
@@ -14,6 +14,7 @@ const APP_SHELL = [
   './js/go-engine.js',
   './js/board-view.js',
   './js/go-ai.js',
+  './js/version.js',
   './js/app.js',
   './js/tutorial-helpers.js',
   './js/tutorial-content.js',

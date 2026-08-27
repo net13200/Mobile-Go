@@ -7,6 +7,10 @@
   const komiInput = document.getElementById('komi-input');
   const startBtn = document.getElementById('start-btn');
   const learnBtn = document.getElementById('learn-btn');
+  const versionBtn = document.getElementById('version-btn');
+  const whatsNewScreen = document.getElementById('whats-new-screen');
+  const whatsNewBackBtn = document.getElementById('whats-new-back-btn');
+  const whatsNewList = document.getElementById('whats-new-list');
 
   const opponentButtons = [...document.querySelectorAll('.opt-btn[data-opponent]')];
   const colorButtons = [...document.querySelectorAll('.opt-btn[data-color]')];
@@ -113,6 +117,51 @@
     learnBtn.addEventListener('click', () => {
       if (window.Tutorial) window.Tutorial.openLearnScreen();
     });
+  }
+
+  // ---------- Version / What's New ----------
+
+  if (typeof APP_VERSION !== 'undefined') {
+    versionBtn.textContent = 'Version ' + APP_VERSION;
+  }
+
+  versionBtn.addEventListener('click', () => {
+    renderWhatsNew();
+    setupScreen.classList.remove('active');
+    whatsNewScreen.classList.add('active');
+  });
+
+  whatsNewBackBtn.addEventListener('click', () => {
+    whatsNewScreen.classList.remove('active');
+    setupScreen.classList.add('active');
+  });
+
+  function renderWhatsNew() {
+    if (typeof RELEASE_NOTES === 'undefined') return;
+    whatsNewList.innerHTML = '';
+    for (const release of RELEASE_NOTES) {
+      const entry = document.createElement('div');
+      entry.className = 'release-entry';
+
+      const heading = document.createElement('h3');
+      heading.textContent = 'v' + release.version;
+      entry.appendChild(heading);
+
+      const date = document.createElement('p');
+      date.className = 'release-date';
+      date.textContent = release.date;
+      entry.appendChild(date);
+
+      const list = document.createElement('ul');
+      for (const note of release.notes) {
+        const item = document.createElement('li');
+        item.textContent = note;
+        list.appendChild(item);
+      }
+      entry.appendChild(list);
+
+      whatsNewList.appendChild(entry);
+    }
   }
 
   function startGame(size, komi) {
