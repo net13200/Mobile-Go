@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1c1917">
+<title>Go</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <section id="setup-screen" class="screen active">
+    <div class="setup-card">
+      <h1>Go</h1>
+      <p class="subtitle">Local two-player match</p>
+
+      <div class="setup-group">
+        <label>Board size</label>
+        <div class="size-options">
+          <button class="size-btn" data-size="9">
+            <span class="size-num">9×9</span>
+            <span class="size-tag">Quick</span>
+          </button>
+          <button class="size-btn" data-size="13">
+            <span class="size-num">13×13</span>
+            <span class="size-tag">Medium</span>
+          </button>
+          <button class="size-btn" data-size="19">
+            <span class="size-num">19×19</span>
+            <span class="size-tag">Standard</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="setup-group">
+        <label for="komi-input">Komi <span class="hint">(White's compensation)</span></label>
+        <input type="number" id="komi-input" value="6.5" step="0.5" min="0" max="20" inputmode="decimal">
+      </div>
+
+      <button id="start-btn" class="primary-btn" disabled>Start Game</button>
+    </div>
+  </section>
+
+  <section id="game-screen" class="screen">
+    <header id="game-header">
+      <button id="menu-btn" class="icon-btn" aria-label="New game">↺</button>
+      <div id="turn-indicator">
+        <span id="turn-stone" class="stone-icon black"></span>
+        <span id="turn-text">Black to move</span>
+      </div>
+      <div id="captures-info">
+        <span class="cap-row"><i class="dot black"></i><b id="captures-black">0</b></span>
+        <span class="cap-row"><i class="dot white"></i><b id="captures-white">0</b></span>
+      </div>
+    </header>
+
+    <div id="board-wrap">
+      <canvas id="board-canvas"></canvas>
+    </div>
+
+    <div id="scoring-banner" class="hidden">
+      <p>Tap groups to mark them dead, then finish scoring.</p>
+      <div class="scoring-actions">
+        <button id="resume-btn" class="ctrl-btn">Resume Play</button>
+        <button id="finish-scoring-btn" class="primary-btn">Finish Scoring</button>
+      </div>
+    </div>
+
+    <footer id="game-controls">
+      <button id="undo-btn" class="ctrl-btn" disabled>Undo</button>
+      <button id="pass-btn" class="ctrl-btn">Pass</button>
+      <button id="resign-btn" class="ctrl-btn danger">Resign</button>
+    </footer>
+  </section>
+
+  <div id="result-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2 id="result-title"></h2>
+      <p id="result-detail"></p>
+      <div class="modal-actions">
+        <button id="keep-reviewing-btn" class="ctrl-btn">Review Board</button>
+        <button id="play-again-btn" class="primary-btn">New Game</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script src="js/go-engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
