@@ -211,7 +211,27 @@
   // the app still runs, just without offline caching.
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is optional */ });
+      navigator.serviceWorker.register('sw.js').then((reg) => {
+        // A home-screen app on iOS is usually suspended rather than closed
+        // when backgrounded, so just switching back to it resumes the same
+        // frozen page instead of reloading — no update check happens on its
+        // own. Force one explicitly whenever the app is brought back to the
+        // foreground, so a new release is actually noticed.
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+        });
+      }).catch(() => { /* offline support is optional */ });
+
+      // Once a new service worker installs and takes over, the current page
+      // is still running on the assets it already loaded — reload once,
+      // automatically, so the update actually shows up rather than waiting
+      // for the user to notice and relaunch the app themselves.
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloaded) return;
+        reloaded = true;
+        window.location.reload();
+      });
     });
   }
 </script>
