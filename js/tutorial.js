@@ -34,23 +34,6 @@
   }
   let completedLessons = loadProgress();
 
-  const TutorialHelpers = {
-    // Call after Black's atari move has been played: true if White's forced
-    // extension to its one remaining liberty would still leave it at exactly
-    // two liberties (i.e. the ladder keeps working), rather than escaping.
-    ladderContinues(game, row, col) {
-      const idx = game.index(row, col);
-      if (game.board[idx] === EMPTY) return false;
-      const group = game.getGroup(game.board, idx);
-      if (group.liberties.size !== 1) return false;
-      const [libIdx] = [...group.liberties];
-      const testBoard = [...game.board];
-      testBoard[libIdx] = game.board[idx];
-      return game.getGroup(testBoard, libIdx).liberties.size === 2;
-    },
-  };
-  window.TutorialHelpers = TutorialHelpers;
-
   function showScreen(el) {
     document.querySelectorAll('.screen.active').forEach((s) => s.classList.remove('active'));
     el.classList.add('active');
