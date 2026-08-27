@@ -150,6 +150,26 @@ class GoGame {
     return true;
   }
 
+  loadPosition(stones, toPlay = BLACK) {
+    this.board.fill(EMPTY);
+    for (const { row, col, color } of stones) {
+      this.board[this.index(row, col)] = color;
+    }
+    this.currentPlayer = toPlay;
+    this.captures = { [BLACK]: 0, [WHITE]: 0 };
+    this.passCount = 0;
+    this.gameOver = false;
+    this.winner = null;
+    this.resignedBy = null;
+    this.lastMove = null;
+    this.moveLog = [];
+    this.scoringPhase = false;
+    this.deadStones = new Set();
+    this.positionHistory = new Set();
+    this.positionHistory.add(this._historyKey(this.board, this.currentPlayer));
+    return this;
+  }
+
   resign(color) {
     this.gameOver = true;
     this.resignedBy = color;

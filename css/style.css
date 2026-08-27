@@ -425,3 +425,142 @@ html, body {
 .modal-actions .primary-btn {
   flex: 1;
 }
+
+/* ---------- Secondary button (setup screen) ---------- */
+
+.secondary-btn {
+  padding: 13px;
+  border-radius: 14px;
+  border: 2px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.secondary-btn:active {
+  background: var(--panel-border);
+}
+
+/* ---------- Learn / lesson screens ---------- */
+
+.sub-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  padding-top: calc(10px + var(--safe-top));
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+.sub-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+#learn-screen, #lesson-screen {
+  flex-direction: column;
+}
+
+#lesson-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px calc(14px + var(--safe-bottom));
+}
+
+.lesson-module-title {
+  margin: 18px 0 8px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+.lesson-module-title:first-child {
+  margin-top: 4px;
+}
+
+.lesson-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 14px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  border: 2px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.lesson-row .lesson-type-tag {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lesson-row .lesson-check {
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.lesson-module-empty {
+  padding: 10px 14px;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+#lesson-progress {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+#lesson-board-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 10px;
+  touch-action: none;
+}
+
+#lesson-text {
+  padding: 0 18px 12px;
+  flex-shrink: 0;
+  text-align: center;
+}
+#lesson-caption {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+#lesson-feedback {
+  margin: 0;
+  min-height: 1.2em;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+#lesson-feedback.error {
+  color: var(--danger);
+}
+
+#lesson-controls {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  padding-bottom: calc(10px + var(--safe-bottom));
+  background: var(--panel);
+  border-top: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+#lesson-controls .ctrl-btn,
+#lesson-controls .primary-btn {
+  flex: 1;
+}

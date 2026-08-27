@@ -6,10 +6,11 @@
   const sizeButtons = [...document.querySelectorAll('.size-btn')];
   const komiInput = document.getElementById('komi-input');
   const startBtn = document.getElementById('start-btn');
+  const learnBtn = document.getElementById('learn-btn');
 
   const canvas = document.getElementById('board-canvas');
-  const ctx = canvas.getContext('2d');
   const boardWrap = document.getElementById('board-wrap');
+  const mainBoardView = createBoardView(canvas, { container: boardWrap });
 
   const turnStone = document.getElementById('turn-stone');
   const turnText = document.getElementById('turn-text');
@@ -44,9 +45,6 @@
 
   let game = null;
   let selectedSize = null;
-  let cellPx = 0;
-  let marginPx = 0;
-  let dpr = Math.max(window.devicePixelRatio || 1, 1);
   let liveScoreVisible = false;
 
   // ---------- Setup screen ----------
@@ -67,6 +65,12 @@
     startGame(selectedSize, komi);
   });
 
+  if (learnBtn) {
+    learnBtn.addEventListener('click', () => {
+      if (window.Tutorial) window.Tutorial.openLearnScreen();
+    });
+  }
+
   function startGame(size, komi) {
     game = new GoGame(size, komi);
     setupScreen.classList.remove('active');
@@ -78,8 +82,8 @@
     liveScorePanel.classList.add('hidden');
     scoreToggleBtn.classList.remove('active');
     requestAnimationFrame(() => {
-      resizeCanvas();
-      render();
+      mainBoardView.resize(game.size);
+      renderMain();
       updateHud();
     });
   }
@@ -96,215 +100,29 @@
 
   menuBtn.addEventListener('click', backToSetup);
 
-  // ---------- Canvas sizing ----------
-
-  function resizeCanvas() {
-    if (!game) return;
-    const rect = boardWrap.getBoundingClientRect();
-    const available = Math.max(Math.min(rect.width, rect.height) - 4, 100);
-    const size = game.size;
-    // margin as a fraction of a cell, so labels/edge stones have room
-    const cells = size - 1;
-    cellPx = available / (cells + 1.4);
-    marginPx = cellPx * 0.7;
-    const boardPx = Math.round(cells * cellPx + marginPx * 2);
-
-    canvas.style.width = boardPx + 'px';
-    canvas.style.height = boardPx + 'px';
-    canvas.width = Math.round(boardPx * dpr);
-    canvas.height = Math.round(boardPx * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-
   window.addEventListener('resize', () => {
     if (game) {
-      resizeCanvas();
-      render();
+      mainBoardView.resize(game.size);
+      renderMain();
     }
   });
 
-  // ---------- Rendering ----------
-
-  const STAR_POINTS = {
-    9: [[2, 2], [2, 6], [6, 2], [6, 6], [4, 4]],
-    13: [[3, 3], [3, 9], [9, 3], [9, 9], [6, 6]],
-    19: [[3, 3], [3, 9], [3, 15], [9, 3], [9, 9], [9, 15], [15, 3], [15, 9], [15, 15]],
-  };
-
-  function boardToPx(row, col) {
-    return {
-      x: marginPx + col * cellPx,
-      y: marginPx + row * cellPx,
-    };
-  }
-
-  function render() {
+  function renderMain() {
     if (!game) return;
-    const size = game.size;
-    const boardPx = marginPx * 2 + (size - 1) * cellPx;
-
-    ctx.clearRect(0, 0, boardPx, boardPx);
-
-    // wood background
-    const grad = ctx.createLinearGradient(0, 0, boardPx, boardPx);
-    grad.addColorStop(0, getVar('--board-wood-light'));
-    grad.addColorStop(1, getVar('--board-wood'));
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, boardPx, boardPx);
-
-    // grid lines
-    ctx.strokeStyle = getVar('--board-line');
-    ctx.lineWidth = Math.max(cellPx * 0.045, 1);
-    ctx.lineCap = 'square';
-    for (let i = 0; i < size; i++) {
-      const a = boardToPx(i, 0);
-      const b = boardToPx(i, size - 1);
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-
-      const c = boardToPx(0, i);
-      const d = boardToPx(size - 1, i);
-      ctx.beginPath();
-      ctx.moveTo(c.x, c.y);
-      ctx.lineTo(d.x, d.y);
-      ctx.stroke();
-    }
-
-    // star points
-    const stars = STAR_POINTS[size] || [];
-    ctx.fillStyle = getVar('--board-line');
-    for (const [r, c] of stars) {
-      const p = boardToPx(r, c);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, Math.max(cellPx * 0.09, 2), 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // stones
-    const stoneRadius = cellPx * 0.46;
-    for (let idx = 0; idx < game.board.length; idx++) {
-      const color = game.board[idx];
-      if (color === EMPTY) continue;
-      const [r, c] = game.rowCol(idx);
-      const p = boardToPx(r, c);
-      drawStone(p.x, p.y, stoneRadius, color, game.deadStones.has(idx));
-    }
-
-    // last move marker
-    if (game.lastMove && !game.scoringPhase && !liveScoreVisible) {
-      const p = boardToPx(game.lastMove.row, game.lastMove.col);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, stoneRadius * 0.32, 0, Math.PI * 2);
-      ctx.fillStyle = game.lastMove.color === BLACK ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.75)';
-      ctx.fill();
-    }
-
-    // territory overlay: during the scoring phase, or as a live mid-game estimate
-    if (game.scoringPhase || liveScoreVisible) {
-      drawTerritoryPreview(stoneRadius);
-    }
-  }
-
-  function drawStone(x, y, radius, color, isDead) {
-    ctx.save();
-    if (isDead) ctx.globalAlpha = 0.4;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    let grad;
-    if (color === BLACK) {
-      grad = ctx.createRadialGradient(x - radius * 0.35, y - radius * 0.35, radius * 0.1, x, y, radius);
-      grad.addColorStop(0, getVar('--black-stone-a'));
-      grad.addColorStop(1, getVar('--black-stone-b'));
-    } else {
-      grad = ctx.createRadialGradient(x - radius * 0.35, y - radius * 0.35, radius * 0.1, x, y, radius);
-      grad.addColorStop(0, getVar('--white-stone-a'));
-      grad.addColorStop(1, getVar('--white-stone-b'));
-    }
-    ctx.fillStyle = grad;
-    ctx.fill();
-    if (color === WHITE) {
-      ctx.lineWidth = Math.max(radius * 0.06, 0.5);
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-      ctx.stroke();
-    }
-    if (isDead) {
-      ctx.strokeStyle = color === BLACK ? '#fff' : '#900';
-      ctx.lineWidth = Math.max(radius * 0.18, 1.5);
-      const s = radius * 0.5;
-      ctx.beginPath();
-      ctx.moveTo(x - s, y - s);
-      ctx.lineTo(x + s, y + s);
-      ctx.moveTo(x + s, y - s);
-      ctx.lineTo(x - s, y + s);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  function drawTerritoryPreview(stoneRadius) {
-    const size = game.size;
-    const effectiveBoard = [...game.board];
-    for (const d of game.deadStones) effectiveBoard[d] = EMPTY;
-
-    const visited = new Array(effectiveBoard.length).fill(false);
-    for (let idx = 0; idx < effectiveBoard.length; idx++) {
-      if (effectiveBoard[idx] === EMPTY && !visited[idx]) {
-        const region = [idx];
-        visited[idx] = true;
-        const borders = new Set();
-        let qi = 0;
-        while (qi < region.length) {
-          const cur = region[qi++];
-          for (const n of game.neighbors(cur)) {
-            if (effectiveBoard[n] === EMPTY) {
-              if (!visited[n]) {
-                visited[n] = true;
-                region.push(n);
-              }
-            } else {
-              borders.add(effectiveBoard[n]);
-            }
-          }
-        }
-        if (borders.size === 1) {
-          const owner = [...borders][0];
-          ctx.fillStyle = owner === BLACK ? 'rgba(20,20,20,0.55)' : 'rgba(255,255,255,0.75)';
-          for (const cellIdx of region) {
-            const [r, c] = game.rowCol(cellIdx);
-            const p = boardToPx(r, c);
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, stoneRadius * 0.28, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-      }
-    }
-  }
-
-  function getVar(name) {
-    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    mainBoardView.render(game, {
+      showTerritory: game.scoringPhase || liveScoreVisible,
+      showLastMove: !game.scoringPhase && !liveScoreVisible,
+    });
   }
 
   // ---------- Input handling ----------
 
-  canvas.addEventListener('click', (e) => {
+  mainBoardView.onIntersectionClick((row, col) => {
     if (!game || game.gameOver) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const col = Math.round((x - marginPx) / cellPx);
-    const row = Math.round((y - marginPx) / cellPx);
-    if (row < 0 || row >= game.size || col < 0 || col >= game.size) return;
-
-    const p = boardToPx(row, col);
-    const dist = Math.hypot(x - p.x, y - p.y);
-    if (dist > cellPx * 0.5) return;
 
     if (game.scoringPhase) {
       game.toggleDeadGroup(row, col);
-      render();
+      renderMain();
       updateLiveScore();
       return;
     }
@@ -312,11 +130,11 @@
     const result = game.playMove(row, col);
     if (result.legal) {
       vibrate(10);
-      render();
+      renderMain();
       updateHud();
       updateLiveScorePanel();
     }
-  }, { passive: true });
+  });
 
   function vibrate(ms) {
     try {
@@ -329,8 +147,8 @@
   undoBtn.addEventListener('click', () => {
     if (!game) return;
     game.undo();
-    resizeCanvas();
-    render();
+    mainBoardView.resize(game.size);
+    renderMain();
     updateHud();
     updateLiveScorePanel();
   });
@@ -338,7 +156,7 @@
   passBtn.addEventListener('click', () => {
     if (!game || game.gameOver) return;
     game.pass();
-    render();
+    renderMain();
     updateHud();
     updateLiveScorePanel();
     if (game.scoringPhase) {
@@ -372,8 +190,8 @@
     scoreToggleBtn.classList.toggle('active', liveScoreVisible);
     if (liveScoreVisible) updateLiveScorePanel();
     requestAnimationFrame(() => {
-      resizeCanvas();
-      render();
+      mainBoardView.resize(game.size);
+      renderMain();
     });
   });
 
@@ -389,7 +207,7 @@
     if (!game) return;
     game.resumePlay();
     scoringBanner.classList.add('hidden');
-    render();
+    renderMain();
     updateHud();
     updateLiveScorePanel();
   });
@@ -419,7 +237,7 @@
   }
 
   function showResult() {
-    render();
+    renderMain();
     updateHud();
     if (game.resignedBy) {
       const winnerName = game.winner === BLACK ? 'Black' : 'White';

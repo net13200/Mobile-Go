@@ -39,7 +39,37 @@
       </div>
 
       <button id="start-btn" class="primary-btn" disabled>Start Game</button>
+      <button id="learn-btn" class="secondary-btn">Learn to Play</button>
     </div>
+  </section>
+
+  <section id="learn-screen" class="screen">
+    <header class="sub-header">
+      <button id="learn-back-btn" class="icon-btn" aria-label="Back">←</button>
+      <h2>Learn to Play</h2>
+    </header>
+    <div id="lesson-list"></div>
+  </section>
+
+  <section id="lesson-screen" class="screen">
+    <header class="sub-header">
+      <button id="lesson-exit-btn" class="icon-btn" aria-label="Exit lesson">×</button>
+      <div id="lesson-progress"></div>
+    </header>
+    <div id="lesson-board-wrap">
+      <canvas id="lesson-canvas"></canvas>
+    </div>
+    <div id="lesson-text">
+      <p id="lesson-caption"></p>
+      <p id="lesson-feedback"></p>
+    </div>
+    <footer id="lesson-controls">
+      <button id="lesson-back-step-btn" class="ctrl-btn hidden">Back</button>
+      <button id="lesson-hint-btn" class="ctrl-btn hidden">Hint</button>
+      <button id="lesson-retry-btn" class="ctrl-btn hidden">Retry</button>
+      <button id="lesson-next-step-btn" class="primary-btn hidden">Next</button>
+      <button id="lesson-continue-btn" class="primary-btn hidden">Next Lesson</button>
+    </footer>
   </section>
 
   <section id="game-screen" class="screen">
@@ -116,6 +146,9 @@
 
 </div>
 <script src="js/go-engine.js"></script>
+<script src="js/board-view.js"></script>
 <script src="js/app.js"></script>
+<script src="js/tutorial-content.js"></script>
+<script src="js/tutorial.js"></script>
 </body>
 </html>
