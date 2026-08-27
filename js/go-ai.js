@@ -21,6 +21,12 @@ const GoAI = (function () {
     starPoint: 8,         // opening: take the big points
     firstLine: -9,        // opening: the edge is small
     secondLine: -2,
+    // Kept deliberately small: territory is what decides whether to pass at
+    // all (see chooseMove, which uses the raw gain), but leaning on it while
+    // ranking moves pulls the AI off tactically better play and measurably
+    // narrows its winning margin.
+    territory: 0.3,       // per point of territory swing (capped both ways)
+    territoryCap: 12,
     jitter: 2,            // so repeat games differ
   };
 
@@ -30,8 +36,86 @@ const GoAI = (function () {
     19: [[3, 3], [3, 9], [3, 15], [9, 3], [9, 9], [9, 15], [15, 3], [15, 9], [15, 15]],
   };
 
+  const MASK = { [BLACK]: 1, [WHITE]: 2 };
+
   function opponentOf(color) {
     return color === BLACK ? WHITE : BLACK;
+  }
+
+  // Neighbour lookup, built once per board size. game.neighbors() allocates an
+  // array per call, which is far too much garbage for the per-candidate region
+  // scans below.
+  let nbCache = { size: 0, table: null, counts: null };
+  function neighborTable(size) {
+    if (nbCache.size === size) return nbCache;
+    const n = size * size;
+    const table = new Int16Array(n * 4);
+    const counts = new Int8Array(n);
+    for (let i = 0; i < n; i++) {
+      const r = (i / size) | 0;
+      const c = i % size;
+      let k = 0;
+      if (r > 0) table[i * 4 + k++] = i - size;
+      if (r < size - 1) table[i * 4 + k++] = i + size;
+      if (c > 0) table[i * 4 + k++] = i - 1;
+      if (c < size - 1) table[i * 4 + k++] = i + 1;
+      counts[i] = k;
+    }
+    nbCache = { size, table, counts };
+    return nbCache;
+  }
+
+  // Flood-fills every empty region, recording its size and which colours touch
+  // it. This is the same notion of territory the scoring code uses.
+  function computeRegions(board, size) {
+    const { table, counts } = neighborTable(size);
+    const n = board.length;
+    const regionOf = new Int32Array(n).fill(-1);
+    const sizes = [];
+    const borders = [];
+    const stack = [];
+
+    for (let start = 0; start < n; start++) {
+      if (board[start] !== EMPTY || regionOf[start] !== -1) continue;
+      const id = sizes.length;
+      let count = 0;
+      let mask = 0;
+      stack.length = 0;
+      stack.push(start);
+      regionOf[start] = id;
+      while (stack.length) {
+        const cur = stack.pop();
+        count++;
+        const base = cur * 4;
+        for (let j = 0, k = counts[cur]; j < k; j++) {
+          const nb = table[base + j];
+          const v = board[nb];
+          if (v === EMPTY) {
+            if (regionOf[nb] === -1) { regionOf[nb] = id; stack.push(nb); }
+          } else {
+            mask |= MASK[v];
+          }
+        }
+      }
+      sizes.push(count);
+      borders.push(mask);
+    }
+    return { regionOf, sizes, borders };
+  }
+
+  // Territory owned by `color` minus territory owned by the opponent. Using the
+  // difference rather than a bare count keeps early-game moves sensible: a move
+  // that merely neutralises the opponent's claim still scores as progress.
+  function territoryDiff(regions, color) {
+    const mine = MASK[color];
+    const theirs = MASK[opponentOf(color)];
+    let diff = 0;
+    for (let i = 0; i < regions.sizes.length; i++) {
+      const mask = regions.borders[i];
+      if (mask === mine) diff += regions.sizes[i];
+      else if (mask === theirs) diff -= regions.sizes[i];
+    }
+    return diff;
   }
 
   // Diagonal neighbours, which decide whether a surrounded point is a real eye.
@@ -100,21 +184,25 @@ const GoAI = (function () {
     return { board, captured, liberties: mine.liberties.size, groupSize: mine.stones.size };
   }
 
-  function score(game, idx, color, ctx) {
+  // Returns null for an illegal/eye-filling point, otherwise the ranking score
+  // plus the two facts the pass decision needs: whether the move does anything
+  // tactically, and what it is worth in actual territory.
+  function evaluate(game, idx, color, ctx) {
     const sim = simulate(game, idx, color);
     if (!sim) return null;
     if (isOwnEye(game, game.board, idx, color)) return null;
 
     const opp = opponentOf(color);
     let value = 0;
+    let tactical = 0;
 
-    value += sim.captured * WEIGHTS.capture;
+    tactical += sim.captured * WEIGHTS.capture;
 
     // Rescuing our own stones: did a group that was on one liberty gain room?
     for (const groupIdx of ctx.ownAtariGroups) {
       if (sim.board[groupIdx] === color) {
         const after = game.getGroup(sim.board, groupIdx);
-        if (after.liberties.size > 1) value += after.stones.size * WEIGHTS.saveAtari;
+        if (after.liberties.size > 1) tactical += after.stones.size * WEIGHTS.saveAtari;
       }
     }
 
@@ -124,12 +212,30 @@ const GoAI = (function () {
       if (sim.board[n] === opp && !checked.has(n)) {
         const group = game.getGroup(sim.board, n);
         for (const s of group.stones) checked.add(s);
-        if (group.liberties.size === 1) value += group.stones.size * WEIGHTS.giveAtari;
+        if (group.liberties.size === 1) tactical += group.stones.size * WEIGHTS.giveAtari;
       }
     }
 
+    value += tactical;
     if (sim.liberties === 1 && sim.captured === 0) value += WEIGHTS.selfAtari;
     value += Math.min(sim.liberties, WEIGHTS.libertyCap) * WEIGHTS.liberty;
+
+    // What the move is actually worth on the scoreboard. Captured stones are
+    // prisoner points; the rest is the swing in surrounded territory.
+    const after = computeRegions(sim.board, game.size);
+    let gain = sim.captured + territoryDiff(after, color) - ctx.baseDiff;
+
+    // Landing inside a region enclosed solely by the opponent "destroys" that
+    // territory on paper, but this bot cannot read out whether the invading
+    // stone lives — crediting it would make the AI spray doomed stones into
+    // settled areas and never agree the game is over. Keep only the captures.
+    const region = ctx.regions.regionOf[idx];
+    if (region >= 0 && ctx.regions.borders[region] === MASK[opp]) {
+      gain = sim.captured;
+    }
+
+    const capped = Math.max(-WEIGHTS.territoryCap, Math.min(WEIGHTS.territoryCap, gain));
+    value += capped * WEIGHTS.territory;
 
     // Locality: answer where the action is.
     if (ctx.lastMoveIdx >= 0) {
@@ -155,7 +261,7 @@ const GoAI = (function () {
     }
 
     value += Math.random() * WEIGHTS.jitter;
-    return value;
+    return { value, tactical, gain };
   }
 
   function distance(game, a, b) {
@@ -181,12 +287,15 @@ const GoAI = (function () {
       }
     }
 
+    const regions = computeRegions(game.board, game.size);
     return {
       starSet,
       hasStones: stoneCount > 0,
       openingPhase: stoneCount < game.size * game.size * 0.25,
       lastMoveIdx: game.lastMove ? game.index(game.lastMove.row, game.lastMove.col) : -1,
       ownAtariGroups,
+      regions,
+      baseDiff: territoryDiff(regions, color),
     };
   }
 
@@ -195,22 +304,32 @@ const GoAI = (function () {
     const ctx = buildContext(game, color);
     let best = null;
     let bestValue = -Infinity;
+    let bestGain = 0;
+    let bestTactical = 0;
 
     for (let idx = 0; idx < game.board.length; idx++) {
       if (game.board[idx] !== EMPTY) continue;
-      const value = score(game, idx, color, ctx);
-      if (value === null) continue;
-      if (value > bestValue) {
-        bestValue = value;
+      const result = evaluate(game, idx, color, ctx);
+      if (result === null) continue;
+      if (result.value > bestValue) {
+        bestValue = result.value;
+        bestGain = result.gain;
+        bestTactical = result.tactical;
         best = idx;
       }
     }
 
     if (best === null) return null; // nothing legal that isn't our own eye
 
-    // If the opponent has already passed, only keep playing for a move that
-    // actually does something — otherwise agree the game is over.
-    if (game.passCount >= 1 && bestValue < 5) return null;
+    // The opponent has passed and our best move neither captures anything nor
+    // gains a point: agree the game is over rather than filling neutral
+    // points. This must stay gated on passCount — a move can easily look
+    // "pointless" by this narrow measure (no capture, no territory swing)
+    // while the game is still very much live, e.g. a liberty-extending move
+    // defending a group under attack in contested, not-yet-settled fighting.
+    // Passing there instead of playing the AI's own best-ranked move would
+    // abandon a real fight rather than end a finished game.
+    if (game.passCount >= 1 && bestTactical <= 0 && bestGain <= 0) return null;
 
     return { row: Math.floor(best / game.size), col: best % game.size };
   }
