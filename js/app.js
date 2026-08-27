@@ -29,6 +29,13 @@
   const liveDetailBlack = document.getElementById('live-detail-black');
   const liveDetailWhite = document.getElementById('live-detail-white');
 
+  const scoreToggleBtn = document.getElementById('score-toggle-btn');
+  const liveScorePanel = document.getElementById('live-score-panel');
+  const liveScoreBlackPanel = document.getElementById('live-score-black-panel');
+  const liveScoreWhitePanel = document.getElementById('live-score-white-panel');
+  const liveDetailBlackPanel = document.getElementById('live-detail-black-panel');
+  const liveDetailWhitePanel = document.getElementById('live-detail-white-panel');
+
   const resultModal = document.getElementById('result-modal');
   const resultTitle = document.getElementById('result-title');
   const resultDetail = document.getElementById('result-detail');
@@ -40,6 +47,7 @@
   let cellPx = 0;
   let marginPx = 0;
   let dpr = Math.max(window.devicePixelRatio || 1, 1);
+  let liveScoreVisible = false;
 
   // ---------- Setup screen ----------
 
@@ -66,6 +74,9 @@
     resultModal.classList.add('hidden');
     scoringBanner.classList.add('hidden');
     document.getElementById('game-controls').classList.remove('hidden');
+    liveScoreVisible = false;
+    liveScorePanel.classList.add('hidden');
+    scoreToggleBtn.classList.remove('active');
     requestAnimationFrame(() => {
       resizeCanvas();
       render();
@@ -303,6 +314,7 @@
       vibrate(10);
       render();
       updateHud();
+      updateLiveScorePanel();
     }
   }, { passive: true });
 
@@ -320,6 +332,7 @@
     resizeCanvas();
     render();
     updateHud();
+    updateLiveScorePanel();
   });
 
   passBtn.addEventListener('click', () => {
@@ -327,20 +340,42 @@
     game.pass();
     render();
     updateHud();
+    updateLiveScorePanel();
     if (game.scoringPhase) {
       scoringBanner.classList.remove('hidden');
       updateLiveScore();
     }
   });
 
-  function updateLiveScore() {
+  function renderScoreInto(elBlack, elWhite, elDetailBlack, elDetailWhite) {
     if (!game) return;
     const s = game.computeScore();
-    liveScoreBlack.textContent = s.blackScore.toFixed(1);
-    liveScoreWhite.textContent = s.whiteScore.toFixed(1);
-    liveDetailBlack.textContent = `${s.blackTerritory} terr + ${s.blackPrisoners} pris`;
-    liveDetailWhite.textContent = `${s.whiteTerritory} terr + ${s.whitePrisoners} pris + ${game.komi} komi`;
+    elBlack.textContent = s.blackScore.toFixed(1);
+    elWhite.textContent = s.whiteScore.toFixed(1);
+    elDetailBlack.textContent = `${s.blackTerritory} terr + ${s.blackPrisoners} pris`;
+    elDetailWhite.textContent = `${s.whiteTerritory} terr + ${s.whitePrisoners} pris + ${game.komi} komi`;
   }
+
+  function updateLiveScore() {
+    renderScoreInto(liveScoreBlack, liveScoreWhite, liveDetailBlack, liveDetailWhite);
+  }
+
+  function updateLiveScorePanel() {
+    if (!liveScoreVisible) return;
+    renderScoreInto(liveScoreBlackPanel, liveScoreWhitePanel, liveDetailBlackPanel, liveDetailWhitePanel);
+  }
+
+  scoreToggleBtn.addEventListener('click', () => {
+    if (!game) return;
+    liveScoreVisible = !liveScoreVisible;
+    liveScorePanel.classList.toggle('hidden', !liveScoreVisible);
+    scoreToggleBtn.classList.toggle('active', liveScoreVisible);
+    if (liveScoreVisible) updateLiveScorePanel();
+    requestAnimationFrame(() => {
+      resizeCanvas();
+      render();
+    });
+  });
 
   resignBtn.addEventListener('click', () => {
     if (!game || game.gameOver) return;
@@ -356,6 +391,7 @@
     scoringBanner.classList.add('hidden');
     render();
     updateHud();
+    updateLiveScorePanel();
   });
 
   finishScoringBtn.addEventListener('click', () => {
@@ -423,8 +459,12 @@
 
     if (game.scoringPhase) {
       scoringBanner.classList.remove('hidden');
+      scoreToggleBtn.disabled = true;
+      liveScorePanel.classList.add('hidden');
     } else {
       scoringBanner.classList.add('hidden');
+      scoreToggleBtn.disabled = game.gameOver;
+      liveScorePanel.classList.toggle('hidden', !liveScoreVisible);
     }
   }
 })();

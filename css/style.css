@@ -236,6 +236,49 @@ html, body {
 .dot.black { background: #111; }
 .dot.white { background: #eee; border: 1px solid #999; }
 
+.score-btn {
+  width: auto;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  touch-action: manipulation;
+  flex-shrink: 0;
+}
+.score-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.score-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+#live-score-panel {
+  padding: 10px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.estimate-note {
+  margin: 0;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
 #board-wrap {
   flex: 1;
   display: flex;
@@ -300,7 +343,7 @@ html, body {
   text-align: center;
 }
 
-#live-score {
+.live-score {
   display: flex;
   justify-content: center;
   gap: 28px;

@@ -53,7 +53,24 @@
         <span class="cap-row"><i class="dot black"></i><b id="captures-black">0</b></span>
         <span class="cap-row"><i class="dot white"></i><b id="captures-white">0</b></span>
       </div>
+      <button id="score-toggle-btn" class="score-btn" aria-label="Toggle live score">Score</button>
     </header>
+
+    <div id="live-score-panel" class="hidden">
+      <div class="live-score">
+        <div class="live-score-side">
+          <i class="dot black"></i>
+          <span id="live-score-black-panel">0</span>
+          <small id="live-detail-black-panel"></small>
+        </div>
+        <div class="live-score-side">
+          <i class="dot white"></i>
+          <span id="live-score-white-panel">0</span>
+          <small id="live-detail-white-panel"></small>
+        </div>
+      </div>
+      <p class="estimate-note">Estimate — dead stones aren't marked until you pass twice.</p>
+    </div>
 
     <div id="board-wrap">
       <canvas id="board-canvas"></canvas>
@@ -61,7 +78,7 @@
 
     <div id="scoring-banner" class="hidden">
       <p>Tap groups to mark them dead. Score updates live.</p>
-      <div id="live-score">
+      <div class="live-score">
         <div class="live-score-side">
           <i class="dot black"></i>
           <span id="live-score-black">0</span>
