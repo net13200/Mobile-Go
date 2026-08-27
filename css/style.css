@@ -563,4 +563,8 @@ html, body {
 #lesson-controls .ctrl-btn,
 #lesson-controls .primary-btn {
   flex: 1;
+  min-width: 0;
+  padding: 13px 8px;
+  font-size: 0.9rem;
+  white-space: nowrap;
 }

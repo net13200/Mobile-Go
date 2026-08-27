@@ -18,6 +18,7 @@
   const hintBtn = document.getElementById('lesson-hint-btn');
   const retryBtn = document.getElementById('lesson-retry-btn');
   const continueBtn = document.getElementById('lesson-continue-btn');
+  const lessonMenuBtn = document.getElementById('lesson-menu-btn');
 
   const lessonBoardView = createBoardView(lessonCanvas, { container: lessonBoardWrap });
 
@@ -95,7 +96,7 @@
         }
         row.appendChild(left);
         row.appendChild(right);
-        row.addEventListener('click', () => startLesson(mod.id, lesson.id));
+        row.addEventListener('click', () => startLesson(lesson.id));
         lessonListEl.appendChild(row);
       }
     }
@@ -113,17 +114,15 @@
 
   // ---------- Lesson player ----------
 
-  let currentModuleId = null;
   let currentLesson = null;
   let lessonGame = null;
   let stepIndex = 0;
   let hintIndex = 0;
   let practiceSuccess = false;
 
-  function startLesson(moduleId, lessonId) {
+  function startLesson(lessonId) {
     const found = findLesson(lessonId);
     if (!found) return;
-    currentModuleId = moduleId;
     currentLesson = found.lesson;
     showScreen(lessonScreen);
 
@@ -151,6 +150,41 @@
     continueBtn.classList.toggle('hidden', !map.continueBtn);
   }
 
+  // Flattened lesson order across every module that has content, so both
+  // lesson types advance through the whole curriculum the same way rather
+  // than dead-ending at a module boundary.
+  function lessonSequence() {
+    const seq = [];
+    for (const mod of TUTORIAL_MODULES) {
+      for (const lesson of mod.lessons) seq.push(lesson);
+    }
+    return seq;
+  }
+
+  function nextLessonAfter(lessonId) {
+    const seq = lessonSequence();
+    const idx = seq.findIndex((lesson) => lesson.id === lessonId);
+    if (idx < 0 || idx === seq.length - 1) return null;
+    return seq[idx + 1];
+  }
+
+  function isLastLesson(lessonId) {
+    return nextLessonAfter(lessonId) === null;
+  }
+
+  // Mark the current lesson done, then move on to the next one — or back to
+  // the menu if this was the final lesson. Shared by walkthroughs and
+  // practice so both behave identically.
+  function advanceToNextLesson() {
+    completeLesson();
+    const next = nextLessonAfter(currentLesson.id);
+    if (next) {
+      startLesson(next.id);
+    } else {
+      openLearnScreen();
+    }
+  }
+
   function renderWalkthroughStep() {
     const step = currentLesson.steps[stepIndex];
     lessonGame.loadPosition(step.stones, BLACK);
@@ -164,8 +198,8 @@
     lessonFeedbackEl.textContent = '';
     lessonProgressEl.textContent = `Step ${stepIndex + 1}/${currentLesson.steps.length}`;
 
-    const isLast = stepIndex === currentLesson.steps.length - 1;
-    nextStepBtn.textContent = isLast ? 'Finish' : 'Next';
+    const isLastStep = stepIndex === currentLesson.steps.length - 1;
+    nextStepBtn.textContent = (isLastStep && isLastLesson(currentLesson.id)) ? 'Finish' : 'Next';
     setButtonsVisible({ back: true, next: true });
     backStepBtn.disabled = stepIndex === 0;
   }
@@ -182,8 +216,7 @@
       stepIndex++;
       renderWalkthroughStep();
     } else {
-      completeLesson();
-      openLearnScreen();
+      advanceToNextLesson();
     }
   });
 
@@ -203,6 +236,7 @@
     lessonFeedbackEl.textContent = '';
     lessonFeedbackEl.classList.remove('error');
     lessonProgressEl.textContent = currentLesson.title;
+    continueBtn.textContent = isLastLesson(currentLesson.id) ? 'Finish' : 'Next';
     setButtonsVisible({
       hint: !!(currentLesson.hints && currentLesson.hints.length),
       retry: true,
@@ -250,16 +284,9 @@
     renderPractice();
   });
 
-  continueBtn.addEventListener('click', () => {
-    completeLesson();
-    const mod = TUTORIAL_MODULES.find((m) => m.id === currentModuleId);
-    const idx = mod ? mod.lessons.findIndex((l) => l.id === currentLesson.id) : -1;
-    if (mod && idx >= 0 && idx < mod.lessons.length - 1) {
-      startLesson(currentModuleId, mod.lessons[idx + 1].id);
-    } else {
-      openLearnScreen();
-    }
-  });
+  continueBtn.addEventListener('click', advanceToNextLesson);
+
+  lessonMenuBtn.addEventListener('click', openLearnScreen);
 
   function completeLesson() {
     completedLessons.add(currentLesson.id);
