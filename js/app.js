@@ -361,6 +361,7 @@
   resumeBtn.addEventListener('click', () => {
     if (!game) return;
     game.resumePlay();
+    game.finalScore = null; // app-level field; stale from a previous Finish Scoring
     scoringBanner.classList.add('hidden');
     renderMain();
     updateHud();
@@ -372,6 +373,7 @@
     if (!game) return;
     const score = game.computeScore();
     game.gameOver = true;
+    game.scoringPhase = false;
     game.winner = score.winner;
     game.finalScore = score;
     showResult();

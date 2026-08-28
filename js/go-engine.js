@@ -193,6 +193,13 @@ class GoGame {
     this.scoringPhase = false;
     this.passCount = 0;
     this.deadStones.clear();
+    // Resuming means the game isn't actually over, however it got marked
+    // that way — including via Finish Scoring, which sets gameOver without
+    // going through this method. Leaving it true here would make every
+    // subsequent playMove() call reject with "inactive" forever.
+    this.gameOver = false;
+    this.winner = null;
+    this.resignedBy = null;
   }
 
   computeScore() {

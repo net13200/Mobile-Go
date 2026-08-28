@@ -2,9 +2,16 @@
 // "What's New" screen. Bump APP_VERSION and add an entry (newest first)
 // whenever a change is worth telling a returning player about.
 
-const APP_VERSION = '0.6.0';
+const APP_VERSION = '0.6.1';
 
 const RELEASE_NOTES = [
+  {
+    version: '0.6.1',
+    date: '2026-08-28',
+    notes: [
+      'Fixed Resume Play getting stuck after Finish Scoring — the board silently stopped accepting moves instead of actually resuming.',
+    ],
+  },
   {
     version: '0.6.0',
     date: '2026-08-27',
