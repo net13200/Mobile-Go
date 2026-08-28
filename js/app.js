@@ -14,6 +14,7 @@
 
   const opponentButtons = [...document.querySelectorAll('.opt-btn[data-opponent]')];
   const colorButtons = [...document.querySelectorAll('.opt-btn[data-color]')];
+  const difficultyButtons = [...document.querySelectorAll('.opt-btn[data-difficulty]')];
   const aiOptions = document.getElementById('ai-options');
   const handicapSelect = document.getElementById('handicap-select');
 
@@ -61,10 +62,15 @@
   let playerColor = BLACK;
   let aiColor = null;
   let handicap = 0;
+  let aiDifficulty = 'easy';
   let aiThinking = false;
   let aiTimer = null;
 
-  const AI_DELAY_MS = 350; // the AI answers in ~8ms; a beat makes it feel considered
+  // Easy answers in ~8ms, so its full delay is an artificial pause to feel
+  // considered. Medium's own search already takes real time (tens to a
+  // couple hundred ms), so it gets a shorter pause on top rather than
+  // stacking the full delay on top of a wait that's already perceptible.
+  const AI_DELAY_MS = { easy: 350, medium: 150 };
 
   // ---------- Setup screen ----------
 
@@ -87,6 +93,8 @@
         handicapSelect.value = '0';
         handicap = 0;
         komiInput.value = '6.5';
+        difficultyButtons.forEach((b) => b.classList.toggle('selected', b.dataset.difficulty === 'easy'));
+        aiDifficulty = 'easy';
       }
     });
   });
@@ -96,6 +104,14 @@
       colorButtons.forEach((b) => b.classList.remove('selected'));
       btn.classList.add('selected');
       playerColor = btn.dataset.color === 'white' ? WHITE : BLACK;
+    });
+  });
+
+  difficultyButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      difficultyButtons.forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      aiDifficulty = btn.dataset.difficulty;
     });
   });
 
@@ -212,7 +228,8 @@
       // The game may have been abandoned or undone while we waited.
       if (!isAITurn()) { aiThinking = false; updateHud(); return; }
 
-      const move = GoAI.chooseMove(game, aiColor);
+      const chooseFn = aiDifficulty === 'medium' ? GoAI.chooseMediumMove : GoAI.chooseMove;
+      const move = chooseFn(game, aiColor);
       if (move === null) {
         game.pass();
       } else {
@@ -230,7 +247,7 @@
         scoringBanner.classList.remove('hidden');
         updateLiveScore();
       }
-    }, AI_DELAY_MS);
+    }, AI_DELAY_MS[aiDifficulty]);
   }
 
   function backToSetup() {

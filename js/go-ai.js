@@ -299,27 +299,28 @@ const GoAI = (function () {
     };
   }
 
-  // Returns { row, col } to play, or null to pass.
-  function chooseMove(game, color) {
+  // Scores every legal, non-eye-filling point and returns them best-first.
+  // Shared by the greedy (Easy) picker and the search (Medium) below, so both
+  // tiers agree on what a move is worth at a single ply — Medium only differs
+  // in how many plies ahead it's willing to look.
+  function rankMoves(game, color) {
     const ctx = buildContext(game, color);
-    let best = null;
-    let bestValue = -Infinity;
-    let bestGain = 0;
-    let bestTactical = 0;
-
+    const scored = [];
     for (let idx = 0; idx < game.board.length; idx++) {
       if (game.board[idx] !== EMPTY) continue;
       const result = evaluate(game, idx, color, ctx);
       if (result === null) continue;
-      if (result.value > bestValue) {
-        bestValue = result.value;
-        bestGain = result.gain;
-        bestTactical = result.tactical;
-        best = idx;
-      }
+      scored.push({ idx, value: result.value, tactical: result.tactical, gain: result.gain });
     }
+    scored.sort((a, b) => b.value - a.value);
+    return scored;
+  }
 
-    if (best === null) return null; // nothing legal that isn't our own eye
+  // Returns { row, col } to play, or null to pass.
+  function chooseMove(game, color) {
+    const ranked = rankMoves(game, color);
+    if (ranked.length === 0) return null; // nothing legal that isn't our own eye
+    const best = ranked[0];
 
     // The opponent has passed and our best move neither captures anything nor
     // gains a point: agree the game is over rather than filling neutral
@@ -329,9 +330,134 @@ const GoAI = (function () {
     // defending a group under attack in contested, not-yet-settled fighting.
     // Passing there instead of playing the AI's own best-ranked move would
     // abandon a real fight rather than end a finished game.
-    if (game.passCount >= 1 && bestTactical <= 0 && bestGain <= 0) return null;
+    if (game.passCount >= 1 && best.tactical <= 0 && best.gain <= 0) return null;
 
-    return { row: Math.floor(best / game.size), col: best % game.size };
+    return { row: Math.floor(best.idx / game.size), col: best.idx % game.size };
+  }
+
+  // ---------------------------------------------------------------------
+  // Medium: shallow minimax with alpha-beta pruning over the same per-move
+  // judgment above. Easy is blind to any plan that needs more than one move
+  // to pay off (e.g. two stones that only seal territory together); a few
+  // plies of real lookahead catches that class of tactic without needing a
+  // faster board representation or a worker thread.
+  //
+  // Candidate count is deliberately tuned DOWN as the board grows, not up:
+  // per-node cost already rises with board size (more points to scan per
+  // evaluation), and Go tactics are local, so a wider candidate list on a
+  // bigger board buys little — it mostly just spends the time budget faster.
+  // Depth stays fixed at 3 plies (its move, a reply, its move again) across
+  // all sizes, since that's a fixed tactical reach, not a board-size property.
+  const MEDIUM_PARAMS = {
+    9: { depth: 3, candidates: 13 },
+    13: { depth: 3, candidates: 7 },
+    19: { depth: 3, candidates: 4 },
+  };
+
+  // Value of a position, from `rootColor`'s perspective. Raw computeScore()
+  // territory is a late-forming signal — most of the board only resolves to
+  // one color's territory once it's nearly sealed off, so within a 3-ply
+  // window it is usually identical for every candidate line (no capture, no
+  // newly-enclosed region) and tells the search nothing. This combines the
+  // signals that DO move within a few plies — captures made, groups put in
+  // or pulled out of atari, liberty count — with territory folded in at the
+  // same (small, capped) weight used for ranking single moves, so a searched
+  // line is judged the same way a candidate move already is.
+  function leafScore(game, rootColor) {
+    const opp = opponentOf(rootColor);
+    let libertyScore = 0;
+    let atariScore = 0;
+    const seen = new Set();
+    for (let i = 0; i < game.board.length; i++) {
+      const c = game.board[i];
+      if (c === EMPTY || seen.has(i)) continue;
+      const group = game.getGroup(game.board, i);
+      for (const s of group.stones) seen.add(s);
+      const sign = c === rootColor ? 1 : -1;
+      libertyScore += sign * Math.min(group.liberties.size, WEIGHTS.libertyCap);
+      if (group.liberties.size === 1) atariScore -= sign * group.stones.size;
+    }
+
+    const captureDiff = game.captures[rootColor] - game.captures[opp];
+    const regions = computeRegions(game.board, game.size);
+    const territory = territoryDiff(regions, rootColor);
+    const cappedTerritory = Math.max(-WEIGHTS.territoryCap, Math.min(WEIGHTS.territoryCap, territory));
+
+    return captureDiff * WEIGHTS.capture
+      + atariScore * WEIGHTS.giveAtari
+      + libertyScore * WEIGHTS.liberty
+      + cappedTerritory * WEIGHTS.territory;
+  }
+
+  // Alpha-beta minimax. `game` is mutated and restored via playMove/undo for
+  // the real descent (captures, ko, everything the engine already gets
+  // right); rankMoves' own lightweight simulate() stays cheap for the
+  // candidate-generation pass at each node. Nodes where it's rootColor's turn
+  // maximize; the opponent's nodes minimize.
+  function searchValue(game, color, rootColor, depth, alpha, beta, K) {
+    if (depth === 0) return leafScore(game, rootColor);
+
+    const ranked = rankMoves(game, color);
+    if (ranked.length === 0) return leafScore(game, rootColor); // nothing to do but stop here
+
+    const maximizing = color === rootColor;
+    const opp = opponentOf(color);
+    let value = maximizing ? -Infinity : Infinity;
+
+    for (let i = 0; i < ranked.length && i < K; i++) {
+      const idx = ranked[i].idx;
+      const res = game.playMove(Math.floor(idx / game.size), idx % game.size);
+      if (!res.legal) continue; // rankMoves already checked; defensive only
+      const childValue = searchValue(game, opp, rootColor, depth - 1, alpha, beta, K);
+      game.undo();
+
+      if (maximizing) {
+        if (childValue > value) value = childValue;
+        if (value > alpha) alpha = value;
+      } else {
+        if (childValue < value) value = childValue;
+        if (value < beta) beta = value;
+      }
+      if (alpha >= beta) break; // the other side already has a better option elsewhere
+    }
+    return value;
+  }
+
+  // Returns { row, col } to play, or null to pass.
+  function chooseMediumMove(game, color) {
+    const params = MEDIUM_PARAMS[game.size] || MEDIUM_PARAMS[9];
+    const ranked = rankMoves(game, color);
+    if (ranked.length === 0) return null;
+
+    // Whether to pass is a judgment about whether the position is actually
+    // settled, not about how deep to search — reuse Easy's already-correct
+    // signal (does the single best move capture anything or shift real
+    // territory right now) rather than comparing searched leaf scores. Those
+    // are legitimately near-identical across candidates this early — no
+    // territory has enclosed yet within just a few plies of an empty-ish
+    // board — which made the search mistake "too early to tell" for
+    // "nothing left to gain" and pass out live games.
+    if (game.passCount >= 1 && ranked[0].tactical <= 0 && ranked[0].gain <= 0) return null;
+
+    const opp = opponentOf(color);
+    let bestIdx = null;
+    let bestValue = -Infinity;
+    let alpha = -Infinity;
+    const beta = Infinity;
+
+    for (let i = 0; i < ranked.length && i < params.candidates; i++) {
+      const idx = ranked[i].idx;
+      const res = game.playMove(Math.floor(idx / game.size), idx % game.size);
+      if (!res.legal) continue;
+      const value = searchValue(game, opp, color, params.depth - 1, alpha, beta, params.candidates);
+      game.undo();
+
+      if (value > bestValue) { bestValue = value; bestIdx = idx; }
+      if (value > alpha) alpha = value;
+    }
+
+    if (bestIdx === null) return null;
+    return { row: Math.floor(bestIdx / game.size), col: bestIdx % game.size };
   }
 
   // Traditional handicap placement, in the conventional order.
@@ -360,7 +486,7 @@ const GoAI = (function () {
     return pts.map(([row, col]) => ({ row, col, color: BLACK }));
   }
 
-  return { chooseMove, handicapPoints, isOwnEye };
+  return { chooseMove, chooseMediumMove, handicapPoints, isOwnEye };
 })();
 
 if (typeof window !== 'undefined') window.GoAI = GoAI;

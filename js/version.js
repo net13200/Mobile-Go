@@ -2,9 +2,16 @@
 // "What's New" screen. Bump APP_VERSION and add an entry (newest first)
 // whenever a change is worth telling a returning player about.
 
-const APP_VERSION = '0.6.1';
+const APP_VERSION = '0.7.0';
 
 const RELEASE_NOTES = [
+  {
+    version: '0.7.0',
+    date: '2026-08-28',
+    notes: [
+      'Added a Medium difficulty for the computer opponent — it looks a few moves ahead instead of judging only its next move, so it reads simple tactics Easy can miss.',
+    ],
+  },
   {
     version: '0.6.1',
     date: '2026-08-28',
