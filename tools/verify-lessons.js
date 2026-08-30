@@ -60,6 +60,86 @@ function fail(lessonId, msg) {
   console.log(`  FAIL  ${lessonId}: ${msg}`);
 }
 
+// Exhaustively determines whether a group is unconditionally alive: does it
+// survive even if the opponent gets to attack it first, reading every legal
+// reply on both sides via the real engine (captures/suicide enforced for
+// real)? This exists because "every empty region is single-coloured" (what
+// unsettledRegions checks) only describes the CURRENT board — it says
+// nothing about whether the stones sitting there could actually be captured
+// if attacked, which is exactly the class of bug this guards against: a
+// corner joseki that looked finished but was one move short of real life.
+//
+// board.length must be small enough to brute-force (a handful of eye-space
+// points), which is the normal case for a single group's life-and-death —
+// this is not a general-purpose Go solver.
+function groupIsUnconditionallyAlive(GoGameCtor, size, boardArray, seedRow, seedCol, komi) {
+  // Rebuild via loadPosition with Black explicitly to move: this is the
+  // standard "unconditionally alive" question, independent of whatever the
+  // real recorded game's move-count parity happens to make the actual next
+  // player — using the real game's currentPlayer here would sometimes hand
+  // the attacker's first move to White by accident, which proves nothing.
+  const stones = [];
+  for (let idx = 0; idx < boardArray.length; idx++) {
+    if (boardArray[idx] !== EMPTY) stones.push({ row: Math.floor(idx / size), col: idx % size, color: boardArray[idx] });
+  }
+  const game = new GoGameCtor(size, komi);
+  game.loadPosition(stones, BLACK);
+
+  const seedIdx = game.index(seedRow, seedCol);
+  if (game.board[seedIdx] !== WHITE) throw new Error(`groupIsUnconditionallyAlive: seed (${seedRow},${seedCol}) is not a White stone`);
+
+  const group = game.getGroup(game.board, seedIdx);
+  // The group's own liberties may not be its whole eye space (a thin,
+  // bent group can enclose a point it doesn't directly touch), so flood-fill
+  // the full connected empty region from any liberty rather than trusting
+  // the liberty set alone.
+  const region = new Set();
+  const stack = [[...group.liberties][0]];
+  region.add(stack[0]);
+  while (stack.length) {
+    const cur = stack.pop();
+    for (const n of game.neighbors(cur)) {
+      if (game.board[n] === EMPTY && !region.has(n)) { region.add(n); stack.push(n); }
+    }
+  }
+
+  function groupAlive() { return game.board[seedIdx] === WHITE; }
+  const memo = new Map();
+  function key() { return game.board.join('') + '|' + game.currentPlayer; }
+  function solve(depth) {
+    if (!groupAlive()) return true;
+    if (depth > 30) return false; // safety valve; real eye spaces here are tiny
+    const k = key();
+    if (memo.has(k)) return memo.get(k);
+    const mover = game.currentPlayer;
+    const candidates = [...region].filter((idx) => game.board[idx] === EMPTY);
+    let result;
+    if (mover === BLACK) {
+      result = false;
+      for (const idx of candidates) {
+        const res = game.playMove(Math.floor(idx / size), idx % size);
+        if (!res.legal) continue;
+        const sub = solve(depth + 1);
+        game.undo();
+        if (sub) { result = true; break; }
+      }
+    } else {
+      result = true;
+      for (const idx of candidates) {
+        const res = game.playMove(Math.floor(idx / size), idx % size);
+        if (!res.legal) continue;
+        const sub = solve(depth + 1);
+        game.undo();
+        if (!sub) { result = false; break; }
+      }
+      if (candidates.length === 0) result = false;
+    }
+    memo.set(k, result);
+    return result;
+  }
+  return !solve(0);
+}
+
 function checkStones(lessonId, label, stones, size) {
   const seen = new Set();
   for (const s of stones) {
@@ -113,22 +193,44 @@ for (const mod of TUTORIAL_MODULES) {
 
       // Replay exactly the way the lesson player does. A recorded game is
       // only worth shipping if the real engine accepts every move of it.
+      // Snapshot the board after each move so lifeDeathChecks (below) can
+      // test a specific group's status at the point the commentary claims it.
       const game = new GoGame(size, lesson.komi || 0);
+      const boardAfterMove = [];
       lesson.moves.forEach((m, i) => {
         moveCount++;
         if (!m.note) fail(lesson.id, `move ${i + 1}: missing commentary`);
         if (m.pass) {
           if (game.scoringPhase) fail(lesson.id, `move ${i + 1}: pass came after the game already ended`);
           game.pass();
+          boardAfterMove.push([...game.board]);
           return;
         }
         if (m.row < 0 || m.row >= size || m.col < 0 || m.col >= size) {
           fail(lesson.id, `move ${i + 1}: (${m.row},${m.col}) is off a ${size}x${size} board`);
+          boardAfterMove.push([...game.board]);
           return;
         }
         const res = game.playMove(m.row, m.col);
         if (!res.legal) fail(lesson.id, `move ${i + 1}: (${m.row},${m.col}) is illegal — ${res.reason}`);
+        boardAfterMove.push([...game.board]);
       });
+
+      // A group the commentary claims is alive should actually be provably
+      // alive, not just currently uncaptured — see groupIsUnconditionallyAlive.
+      if (lesson.lifeDeathChecks) {
+        for (const check of lesson.lifeDeathChecks) {
+          const board = boardAfterMove[check.afterMove - 1];
+          if (!board) { fail(lesson.id, `lifeDeathChecks: no board snapshot for move ${check.afterMove}`); continue; }
+          const alive = groupIsUnconditionallyAlive(GoGame, size, board, check.seed.row, check.seed.col, lesson.komi || 0);
+          if (!alive) {
+            fail(lesson.id, `lifeDeathChecks "${check.label}": group at (${check.seed.row},${check.seed.col}) ` +
+                            `after move ${check.afterMove} is NOT unconditionally alive — Black can still force its capture`);
+          } else {
+            console.log(`  ok    ${lesson.id}: "${check.label}" verified unconditionally alive after move ${check.afterMove}`);
+          }
+        }
+      }
 
       if (lesson.showFinalTerritory) {
         // The final step shades territory, so the position must actually be

@@ -2,9 +2,16 @@
 // "What's New" screen. Bump APP_VERSION and add an entry (newest first)
 // whenever a change is worth telling a returning player about.
 
-const APP_VERSION = '0.8.0';
+const APP_VERSION = '0.8.1';
 
 const RELEASE_NOTES = [
+  {
+    version: '0.8.1',
+    date: '2026-08-30',
+    notes: [
+      'Fixed the 13×13 example game: the corner White was said to live in wasn’t actually settled — it needed one more move, which the game now plays and explains.',
+    ],
+  },
   {
     version: '0.8.0',
     date: '2026-08-30',

@@ -831,11 +831,29 @@ const TUTORIAL_MODULES = [
 
       // ---- 13x13 -----------------------------------------------------------
       // A complete game built around the 3-3 invasion under a 4-4 stone.
-      // Verified against the engine: all 65 moves legal, final position fully
-      // sealed, scoring B 59 to W 46 + 6.5 komi = 52.5.
+      // Verified against the engine: all 67 moves legal, final position fully
+      // sealed, scoring B 58 to W 45 + 6.5 komi = 51.5.
+      //
+      // The corner's exact shape matters here, not just its rough size. The
+      // first version of this game stopped the corner exchange one move too
+      // soon: six stones enclosing what looked like a clean 2x3 eye space,
+      // which is alive when a solid block borders it on every side, but this
+      // shape only borders it along an L, leaving two of the six points
+      // reachable only through each other rather than through a White stone.
+      // An exhaustive local search (every legal Black attack, every legal
+      // White reply, using the real engine's capture/suicide rules) proved
+      // Black could kill it outright. White's actual follow-up — one stone
+      // at the shape's vital point — was verified the same way to make it
+      // unconditionally alive. The lesson is folded into the commentary
+      // below rather than removed: a shape that looks like a finished
+      // corner joseki can still be one move short of actually living.
       {
         id: 'game-13', title: 'A Full Game: 13×13', type: 'game', boardSize: 13, komi: 6.5,
-        showFinalTerritory: true, finalScore: { black: 59, white: 52.5 },
+        showFinalTerritory: true, finalScore: { black: 58, white: 51.5 },
+        // Regression guard for the exact bug described above: verify-lessons.js
+        // exhaustively checks this group is genuinely unconditionally alive
+        // (not just currently uncaptured) right after the vital-point move.
+        lifeDeathChecks: [{ afterMove: 20, seed: { row: 2, col: 2 }, label: 'White corner group' }],
         intro: 'A complete teaching game on 13×13, built around the single most important trade in Go: territory now, or a wall that makes territory later. White invades a corner and lives there; Black lets him, and takes an outside wall in exchange. Watch what that wall is worth by the end.',
         moves: [
           M(3, 3, 'Black starts on a corner star point — the 4-4. A stone here claims the corner loosely while facing outward, toward the rest of the board.'),
@@ -855,8 +873,10 @@ const TUTORIAL_MODULES = [
           M(0, 4, 'Black blocks on the edge.'),
           M(2, 1, 'White extends the other way along the third line, widening his base.'),
           M(3, 1, 'Black blocks, extending his wall.'),
-          M(2, 0, 'White reaches the left edge. His corner group now has enough room to make two eyes, so it is alive and needs no more moves.'),
-          M(3, 0, 'Black blocks. The exchange is complete: White owns a living corner worth about six points, and Black owns a four-stone wall facing straight down the board. Six certain points against a wall — that is the trade, and the rest of this game is about whether it was a good one.'),
+          M(2, 0, 'White reaches the left edge, boxing in a six-point space in the corner.'),
+          M(3, 0, 'Black blocks. The wall is complete — four stones facing straight down the board. The corner looks finished, and a beginner would happily tenuki here, but it is not actually alive yet: the six enclosed points share only four of them as real liberties of White’s chain, and Black has a move that starts killing the whole group. Don’t take a corner’s life for granted just because it looks like a familiar shape — read it out.'),
+          M(1, 1, 'White reads the danger and plays the vital point. This single stone is the difference between a dead shape and a living one: it splits the corner into two separated spaces that Black can never connect back into one, which is exactly what two real eyes requires. Now, and only now, is the corner unconditionally alive.'),
+          M(9, 1, 'Black has no reason to answer locally — attacking the corner is pointless now — so he takes the next-biggest point instead, reinforcing the framework his own wall points toward.'),
           M(9, 6, 'White reduces from the right, pressing into the lower part of Black’s framework.'),
           M(10, 6, 'Black blocks underneath, protecting the bottom — the direction his wall points.'),
           M(9, 7, 'White pushes on.'),
@@ -904,7 +924,7 @@ const TUTORIAL_MODULES = [
           PASS('White has no move left anywhere that gains him a point. Playing inside his own territory would only fill a point he already owns — under territory scoring that costs him a point. So he passes. Knowing when there is nothing left to play is part of the endgame.'),
           M(12, 8, 'Black fills the final boundary point. Both players now pass, and the game is counted.'),
         ],
-        summary: 'Black has 59 points; White has 46 plus 6.5 komi, for 52.5. Black wins by 6.5. Now look back at move 19. White took roughly six points of corner territory, and Black took a four-stone wall in exchange. That wall is the reason Black’s bottom and left grew so large, and the reason White’s reductions along rows 3 and 9 never broke through anywhere. White’s six points were real from the moment he made them — Black’s wall was worth nothing at all until it was worth the game.',
+        summary: 'Black has 58 points; White has 45 plus 6.5 komi, for 51.5. Black wins by 6.5. Now look back at moves 19–20. White took roughly six points of corner territory, but only became truly, unconditionally alive after the extra move at the vital point — the shape wasn’t finished the moment it looked finished. Black took a four-stone wall in exchange, and that wall is the reason Black’s bottom and left grew so large, and the reason White’s reductions along rows 3 and 9 never broke through anywhere. The trade — a small living corner against outside strength — is the main lesson here, but the smaller one matters too: check that a corner is actually alive before you rely on it, not just that it looks like one you’ve seen before.',
       },
 
       // ---- 19x19 -----------------------------------------------------------
