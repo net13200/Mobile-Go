@@ -9,11 +9,21 @@
 //   practice: { id, title, type:'practice', boardSize, initialStones, toPlay,
 //     setupMoves?, goal, markers?, hints?, maxAttempts?, checkSuccess(game, moveResult),
 //     solutionMoves? }
+//   game: { id, title, type:'game', boardSize, komi, intro, summary,
+//     showFinalTerritory?, moves:[{ row, col, note } | { pass:true, note }, ...] }
+//     — a recorded game replayed through the real engine one move at a time.
+//     Moves alternate from Black; only the move list is stored, so the board
+//     for any step is rebuilt by actually playing it. Set showFinalTerritory
+//     only on a game played out to a finished, fully sealed position.
 
 // ---- Shared positions, so a shape used by several lessons is written once. ----
 
 const B_ = (row, col) => ({ row, col, color: BLACK });
 const W_ = (row, col) => ({ row, col, color: WHITE });
+
+// Recorded-game move helpers.
+const M = (row, col, note) => ({ row, col, note });
+const PASS = (note) => ({ pass: true, note });
 
 // Black alive in the corner with two one-point eyes at (0,0) and (0,2).
 const ALIVE_SHAPE = [
@@ -773,6 +783,168 @@ const TUTORIAL_MODULES = [
           { stones: [{ row: 3, col: 3, color: BLACK }, { row: 3, col: 9, color: WHITE }, { row: 9, col: 3, color: BLACK }, { row: 6, col: 2, color: WHITE }],
             caption: 'Play away from strength, toward the open board, and into the area both sides want. That instinct — direction — is what separates intermediate players from beginners who only see local fights.' },
         ],
+      },
+    ],
+  },
+  {
+    id: 'example-games',
+    title: 'Example Games',
+    lessons: [
+      // ---- 9x9 -------------------------------------------------------------
+      // A complete game, played out until every boundary is closed. Verified
+      // move by move against the engine: all 25 moves are legal, nothing is
+      // captured, and the final position is fully sealed, scoring B 31 to
+      // W 25 + 5.5 komi = 30.5.
+      {
+        id: 'game-9', title: 'A Full Game: 9×9', type: 'game', boardSize: 9, komi: 5.5,
+        showFinalTerritory: true, finalScore: { black: 31, white: 30.5 },
+        intro: 'A complete teaching game on 9×9, from the first stone to the final count — and it comes down to half a point. On a board this small the opening lasts about four moves, so almost everything is decided by where the boundaries end up. Step through and watch the border form.',
+        moves: [
+          M(2, 2, 'Black takes a corner star point. Corners are the cheapest territory on the board: you need stones on only two sides to enclose a corner, three for a side, and four for the middle.'),
+          M(6, 6, 'White takes the opposite corner. There is nothing to fight about yet, so both players simply take the most valuable empty areas.'),
+          M(6, 2, 'Black takes a second corner. Two corners on the same side means Black is claiming the whole left of the board.'),
+          M(2, 6, 'White answers with the fourth corner and claims the right. Four moves in, the 9×9 opening is essentially over.'),
+          M(4, 4, 'Tengen — the centre point. On a small board this is huge: it reaches toward both of Black’s corners at once and looks straight into White’s half.'),
+          M(4, 6, 'White links his two corner stones into one solid position, and the right side starts to look like his.'),
+          M(4, 2, 'Black does the same on the left. Both players now have a framework, and the game will be decided by exactly where the line between them falls.'),
+          M(7, 4, 'White expands along the bottom, pushing the boundary toward Black’s side.'),
+          M(1, 4, 'Black answers on the top. Neither player is attacking — they are racing to claim the neutral ground in the middle.'),
+          M(6, 4, 'White pushes upward. Moves like this are worth only a point or two, but on 9×9 a point or two is a large fraction of the whole game.'),
+          M(6, 3, 'Black blocks directly. Blocking here is right: it defends the lower-left corner and keeps White’s stones pressed low at the same time.'),
+          M(5, 5, 'White caps diagonally, drawing the boundary he wants through the centre.'),
+          M(5, 4, 'Black blocks, connecting underneath his centre stone. The border is now visible — a diagonal running from bottom-left to top-right.'),
+          M(4, 5, 'White joins everything on the right into a single group. There are no cutting points left for Black to aim at.'),
+          M(3, 5, 'Black hanes — reaching around the outside of White’s stone. The hane is one of the most useful shapes in Go: it pushes your border forward and holds your opponent’s back.'),
+          M(3, 6, 'White blocks, protecting the top-right corner.'),
+          M(2, 5, 'Black extends and seals the top. Both frameworks are now closed off; what remains is pure endgame.'),
+          M(7, 3, 'White pushes into the bottom-left. The big areas are settled, so both players now trade small boundary points.'),
+          M(7, 2, 'Black blocks.'),
+          M(8, 3, 'White descends to the edge. This is solid — the stone connects back to his own, so Black cannot cut it off and capture it.'),
+          M(8, 2, 'Black blocks and seals the corner. Notice how each of these exchanges is only worth a point or two, and how much that matters here.'),
+          M(1, 6, 'White blocks on the top right — the last sizeable boundary left.'),
+          M(1, 5, 'Black blocks back.'),
+          M(0, 6, 'White descends to the top edge.'),
+          M(0, 5, 'Black seals the very last open point. Every boundary is now closed, so both players pass and the game is counted.'),
+        ],
+        summary: 'Black has 31 points of territory; White has 25 plus 5.5 komi, for 30.5. Black wins by half a point. Not a single stone was captured all game — the entire result came from who claimed which points, and from a handful of one-point boundary exchanges at the end. That is 9×9 in a nutshell: the opening is over almost immediately, and the endgame decides everything. Step back through and pick any one boundary move; play it the other way, and Black loses.',
+      },
+
+      // ---- 13x13 -----------------------------------------------------------
+      // A complete game built around the 3-3 invasion under a 4-4 stone.
+      // Verified against the engine: all 65 moves legal, final position fully
+      // sealed, scoring B 59 to W 46 + 6.5 komi = 52.5.
+      {
+        id: 'game-13', title: 'A Full Game: 13×13', type: 'game', boardSize: 13, komi: 6.5,
+        showFinalTerritory: true, finalScore: { black: 59, white: 52.5 },
+        intro: 'A complete teaching game on 13×13, built around the single most important trade in Go: territory now, or a wall that makes territory later. White invades a corner and lives there; Black lets him, and takes an outside wall in exchange. Watch what that wall is worth by the end.',
+        moves: [
+          M(3, 3, 'Black starts on a corner star point — the 4-4. A stone here claims the corner loosely while facing outward, toward the rest of the board.'),
+          M(9, 9, 'White takes the opposite corner.'),
+          M(9, 3, 'Black takes a second corner. With both left-hand corners, Black is thinking about the entire left side.'),
+          M(3, 9, 'White answers with the fourth corner, claiming the right.'),
+          M(6, 3, 'Black extends down the left side, linking his two corner stones. This is not territory yet — it is a framework, a large area loosely claimed.'),
+          M(6, 9, 'White builds the mirror framework on the right. Dead even so far.'),
+          M(6, 6, 'Black takes the centre. Now his framework is clearly the bigger one, and White has to do something about it.'),
+          M(2, 2, 'White invades at the 3-3 point, underneath Black’s corner stone. This is the standard way to take a corner that a 4-4 stone only loosely holds: the 4-4 controls the outside, not the corner itself.'),
+          M(3, 2, 'Black blocks underneath. This is the critical decision of the whole game. Black cannot keep both the corner and the outside, so he chooses: he blocks on the side that makes his wall face down the left, toward his own stones.'),
+          M(2, 3, 'White pushes along the third line, taking corner territory.'),
+          M(2, 4, 'Black blocks. Every push-and-block here trades a little corner territory to White for one more stone in Black’s wall.'),
+          M(1, 3, 'White turns upward and begins sealing his corner shut.'),
+          M(1, 4, 'Black blocks alongside.'),
+          M(0, 3, 'White descends to the top edge. This closes his corner off with his own stones — which is exactly what turns the enclosed points into real territory rather than a shared, neutral area.'),
+          M(0, 4, 'Black blocks on the edge.'),
+          M(2, 1, 'White extends the other way along the third line, widening his base.'),
+          M(3, 1, 'Black blocks, extending his wall.'),
+          M(2, 0, 'White reaches the left edge. His corner group now has enough room to make two eyes, so it is alive and needs no more moves.'),
+          M(3, 0, 'Black blocks. The exchange is complete: White owns a living corner worth about six points, and Black owns a four-stone wall facing straight down the board. Six certain points against a wall — that is the trade, and the rest of this game is about whether it was a good one.'),
+          M(9, 6, 'White reduces from the right, pressing into the lower part of Black’s framework.'),
+          M(10, 6, 'Black blocks underneath, protecting the bottom — the direction his wall points.'),
+          M(9, 7, 'White pushes on.'),
+          M(10, 7, 'Black follows underneath. White gains a few points along row 9; Black seals the entire bottom. Black is happy with this.'),
+          M(9, 8, 'White pushes again.'),
+          M(10, 8, 'Black follows again, and the bottom is now firmly his.'),
+          M(6, 7, 'White turns to the centre and pushes at Black’s tengen stone from the right.'),
+          M(5, 7, 'Black blocks above, keeping White out of the upper centre.'),
+          M(7, 7, 'White extends downward, heading toward the safety of his own stones.'),
+          M(5, 8, 'Black extends too, drawing the boundary as he goes.'),
+          M(8, 7, 'White connects his centre stones down to his group on row 9. They are now safe.'),
+          M(7, 6, 'Black caps from the left. This is necessary, not optional: his centre stone was down to two liberties and would have come under attack.'),
+          M(8, 6, 'White pushes left.'),
+          M(8, 5, 'Black blocks.'),
+          M(9, 5, 'White pushes left once more.'),
+          M(9, 4, 'Black blocks, backed up by his corner stone. White’s advance stops here.'),
+          M(3, 5, 'White switches to the top, sliding into the gap beneath Black’s wall.'),
+          M(2, 5, 'Black blocks above. His wall along row 2 is what holds the whole top.'),
+          M(3, 6, 'White pushes.'),
+          M(2, 6, 'Black blocks.'),
+          M(3, 7, 'White pushes.'),
+          M(2, 7, 'Black blocks.'),
+          M(3, 8, 'White pushes once more, joining all the way back to his top-right corner stone.'),
+          M(2, 8, 'Black blocks. Two solid walls now face each other along rows 2 and 3.'),
+          M(2, 9, 'White blocks Black’s wall from running any further right.'),
+          M(1, 9, 'Black slides along row 1, reducing White’s corner from the top.'),
+          M(1, 10, 'White blocks.'),
+          M(0, 10, 'Black hanes on the very edge. First-line moves are small, but in a close endgame they decide games.'),
+          M(0, 11, 'White blocks.'),
+          M(0, 9, 'Black connects. Without this, his edge stone was in atari and would simply have been captured.'),
+          M(6, 8, 'White fills the gap in his centre wall, removing a point where Black could have cut.'),
+          M(3, 4, 'Black blocks White’s top wall from pushing any further left.'),
+          M(4, 9, 'White seals the right-hand edge of his framework.'),
+          M(4, 5, 'Black seals underneath White’s wall. From here on both players are simply drawing exact borders — this is the endgame.'),
+          M(4, 6, 'White pushes down into a remaining gap.'),
+          M(5, 6, 'Black blocks it off.'),
+          M(5, 9, 'White seals.'),
+          M(4, 7, 'Black seals.'),
+          M(10, 9, 'White descends into the bottom-right corner, claiming it.'),
+          M(4, 8, 'Black seals.'),
+          M(11, 9, 'White descends again.'),
+          M(10, 5, 'Black closes off White’s row-9 stones from below.'),
+          M(12, 9, 'White descends to the last line, finishing his corner.'),
+          M(11, 8, 'Black blocks alongside.'),
+          PASS('White has no move left anywhere that gains him a point. Playing inside his own territory would only fill a point he already owns — under territory scoring that costs him a point. So he passes. Knowing when there is nothing left to play is part of the endgame.'),
+          M(12, 8, 'Black fills the final boundary point. Both players now pass, and the game is counted.'),
+        ],
+        summary: 'Black has 59 points; White has 46 plus 6.5 komi, for 52.5. Black wins by 6.5. Now look back at move 19. White took roughly six points of corner territory, and Black took a four-stone wall in exchange. That wall is the reason Black’s bottom and left grew so large, and the reason White’s reductions along rows 3 and 9 never broke through anywhere. White’s six points were real from the moment he made them — Black’s wall was worth nothing at all until it was worth the game.',
+      },
+
+      // ---- 19x19 -----------------------------------------------------------
+      // An opening study, not a finished game: a real 19x19 game runs well
+      // past 200 moves, and the lesson here is whole-board direction, which
+      // is settled in the first 30. Deliberately has no showFinalTerritory —
+      // nothing is sealed yet, so shading territory would imply a score that
+      // does not exist. All 26 moves verified legal against the engine.
+      {
+        id: 'game-19', title: 'Opening Study: 19×19', type: 'game', boardSize: 19, komi: 6.5,
+        intro: 'A full 19×19 game runs well over two hundred moves, so this study stops after the opening — which is where games at this size are usually decided anyway. There is no fighting in it at all. Watch instead how each move simply goes to the biggest open area, and how the two players draw a line across the whole board without ever capturing a stone.',
+        moves: [
+          M(3, 3, 'Black takes a corner. The order never changes with board size: corners first, then sides, then the centre.'),
+          M(3, 15, 'White takes a corner of his own.'),
+          M(15, 15, 'Black takes a third, diagonally opposite his first. A diagonal pair is flexible — Black is not yet committed to any one side of the board.'),
+          M(15, 3, 'White takes the last corner. All four are claimed inside four moves; that is how much more valuable they are than anything else.'),
+          M(3, 9, 'Black plays the top side, between his own corner stone and White’s. This move does two jobs at once — it extends Black’s position and denies White the same extension. Moves that work for you and against your opponent are the best moves available.'),
+          M(15, 9, 'White does exactly the same along the bottom.'),
+          M(9, 15, 'Black takes the right side.'),
+          M(9, 3, 'White takes the left. The four sides and four corners are now shared evenly — and it is Black’s move.'),
+          M(9, 9, 'Black takes the centre point. With everything else split down the middle, the last big open area is the middle, and Black gets it simply because he moved first. That is what the komi given to White is meant to compensate for.'),
+          M(12, 6, 'White builds in the lower left, turning three loosely placed stones into a single large framework.'),
+          M(12, 12, 'Black answers with a framework of his own in the lower right. Both players are now claiming big areas — but neither has any territory yet. A framework is a claim, not a possession.'),
+          M(6, 16, 'White extends down the right side from his top-right corner.'),
+          M(6, 6, 'Black extends in the top left. Both sides are still simply taking the largest remaining point instead of starting a fight.'),
+          M(13, 9, 'The two frameworks now touch, and White begins pushing along the border between them. He could instead invade deep into Black’s area — but Black is strong on every side of it, so an invading group would struggle to live. Pushing along the boundary reduces Black safely.'),
+          M(13, 10, 'Black blocks. Which side you block on is the entire question: this keeps the larger area on Black’s side of the line.'),
+          M(12, 9, 'White pushes again.'),
+          M(12, 10, 'Black blocks again.'),
+          M(11, 9, 'White pushes.'),
+          M(11, 10, 'Black blocks.'),
+          M(10, 9, 'White pushes up to just underneath Black’s centre stone.'),
+          M(10, 10, 'Black blocks. This exchange looks repetitive, but it has just drawn the most important line on the board: everything left of it leans White, everything right of it leans Black.'),
+          M(16, 6, 'White reinforces the lower left, turning that framework into something much closer to actual territory.'),
+          M(16, 14, 'Black does the same in the lower right.'),
+          M(6, 12, 'White reduces the top, expanding from his corner toward the centre.'),
+          M(6, 9, 'Black connects along row 6, joining his top-left stones and his centre into one continuous position. Solid, and it stops White’s reduction from going any deeper.'),
+          M(3, 12, 'White seals the top boundary. The opening is over, and the shape of the whole board is set.'),
+        ],
+        summary: 'Nothing has been captured, and nothing is settled — no group here is alive or dead yet, and there is no score to count. But the board already has a clear shape: White holds the left and the bottom, Black holds the right and the centre, and the top is split between them. Notice what never happened. No invasions, no captures, no fights. Both players simply took the biggest open area again and again, and when the boundary finally mattered, they blocked on the side that kept more. That is what direction of play means, and on a board this size it decides far more games than tactics ever do.',
       },
     ],
   },

@@ -2,9 +2,17 @@
 // "What's New" screen. Bump APP_VERSION and add an entry (newest first)
 // whenever a change is worth telling a returning player about.
 
-const APP_VERSION = '0.7.0';
+const APP_VERSION = '0.8.0';
 
 const RELEASE_NOTES = [
+  {
+    version: '0.8.0',
+    date: '2026-08-30',
+    notes: [
+      'Added Example Games to the end of the tutorial — three annotated games, one for each board size, with commentary on every single move.',
+      'The 9×9 and 13×13 games are played out to the final count; the 19×19 is an opening study on whole-board strategy.',
+    ],
+  },
   {
     version: '0.7.0',
     date: '2026-08-28',

@@ -26,6 +26,34 @@ let failures = 0;
 let practiceCount = 0;
 let walkthroughCount = 0;
 let stepCount = 0;
+let gameCount = 0;
+let moveCount = 0;
+
+// Counts empty regions that touch both colours — i.e. boundaries still open.
+// A finished game should have none.
+function unsettledRegions(game, size) {
+  const visited = new Array(size * size).fill(false);
+  let open = 0;
+  for (let idx = 0; idx < size * size; idx++) {
+    if (game.board[idx] !== EMPTY || visited[idx]) continue;
+    const region = [idx];
+    visited[idx] = true;
+    const borders = new Set();
+    let qi = 0;
+    while (qi < region.length) {
+      const cur = region[qi++];
+      for (const n of game.neighbors(cur)) {
+        if (game.board[n] === EMPTY) {
+          if (!visited[n]) { visited[n] = true; region.push(n); }
+        } else {
+          borders.add(game.board[n]);
+        }
+      }
+    }
+    if (borders.size !== 1) open++;
+  }
+  return open;
+}
 
 function fail(lessonId, msg) {
   failures++;
@@ -74,6 +102,67 @@ for (const mod of TUTORIAL_MODULES) {
         g.loadPosition(step.stones, BLACK);
       });
       console.log(`  ok    ${lesson.id} (${lesson.steps.length} steps)`);
+      continue;
+    }
+
+    if (lesson.type === 'game') {
+      gameCount++;
+      if (!lesson.moves || !lesson.moves.length) { fail(lesson.id, 'no moves'); continue; }
+      if (!lesson.intro) fail(lesson.id, 'missing intro');
+      if (!lesson.summary) fail(lesson.id, 'missing summary');
+
+      // Replay exactly the way the lesson player does. A recorded game is
+      // only worth shipping if the real engine accepts every move of it.
+      const game = new GoGame(size, lesson.komi || 0);
+      lesson.moves.forEach((m, i) => {
+        moveCount++;
+        if (!m.note) fail(lesson.id, `move ${i + 1}: missing commentary`);
+        if (m.pass) {
+          if (game.scoringPhase) fail(lesson.id, `move ${i + 1}: pass came after the game already ended`);
+          game.pass();
+          return;
+        }
+        if (m.row < 0 || m.row >= size || m.col < 0 || m.col >= size) {
+          fail(lesson.id, `move ${i + 1}: (${m.row},${m.col}) is off a ${size}x${size} board`);
+          return;
+        }
+        const res = game.playMove(m.row, m.col);
+        if (!res.legal) fail(lesson.id, `move ${i + 1}: (${m.row},${m.col}) is illegal — ${res.reason}`);
+      });
+
+      if (lesson.showFinalTerritory) {
+        // The final step shades territory, so the position must actually be
+        // finished: every empty region sealed to a single colour. A leaky
+        // boundary would shade nothing and silently misrepresent the result.
+        const open = unsettledRegions(game, size);
+        if (open > 0) {
+          fail(lesson.id, `${open} empty region(s) still border both colours — position is not finished, so territory must not be shaded`);
+        }
+        // Any group left dead-but-uncaptured would be scored as alive here,
+        // so a recorded game has to play its captures out to the end.
+        const s = game.computeScore();
+        if (!lesson.finalScore) {
+          fail(lesson.id, 'a finished game must declare finalScore so the count can be checked');
+        } else {
+          if (s.blackScore !== lesson.finalScore.black || s.whiteScore !== lesson.finalScore.white) {
+            fail(lesson.id, `declared finalScore B ${lesson.finalScore.black}/W ${lesson.finalScore.white} ` +
+                            `but the engine scores B ${s.blackScore}/W ${s.whiteScore}`);
+          }
+          // The summary quotes the result in prose; keep it from drifting
+          // away from the numbers the engine actually produces.
+          for (const n of [String(lesson.finalScore.black), String(lesson.finalScore.white)]) {
+            if (!lesson.summary.includes(n)) {
+              fail(lesson.id, `summary text does not mention the final score "${n}"`);
+            }
+          }
+        }
+        console.log(`  ok    ${lesson.id} (${lesson.moves.length} moves, final B ${s.blackScore} / W ${s.whiteScore})`);
+      } else {
+        if (lesson.finalScore) {
+          fail(lesson.id, 'declares finalScore but does not show final territory — an unfinished study has no score');
+        }
+        console.log(`  ok    ${lesson.id} (${lesson.moves.length} moves, unfinished study)`);
+      }
       continue;
     }
 
@@ -128,6 +217,7 @@ for (const mod of TUTORIAL_MODULES) {
   }
 }
 
-console.log(`\n${walkthroughCount} walkthroughs (${stepCount} steps), ${practiceCount} practice lessons`);
+console.log(`\n${walkthroughCount} walkthroughs (${stepCount} steps), ${practiceCount} practice lessons, ` +
+            `${gameCount} recorded games (${moveCount} commented moves)`);
 console.log(failures === 0 ? 'ALL LESSONS VERIFIED' : `${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

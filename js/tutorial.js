@@ -74,8 +74,12 @@
         right.className = 'lesson-type-tag';
         if (completedLessons.has(lesson.id)) {
           right.innerHTML = '<span class="lesson-check">✓</span>';
+        } else if (lesson.type === 'practice') {
+          right.textContent = 'Practice';
+        } else if (lesson.type === 'game') {
+          right.textContent = 'Game';
         } else {
-          right.textContent = lesson.type === 'practice' ? 'Practice' : 'Walkthrough';
+          right.textContent = 'Walkthrough';
         }
         row.appendChild(left);
         row.appendChild(right);
@@ -115,6 +119,13 @@
       requestAnimationFrame(() => {
         lessonBoardView.resize(lessonGame.size);
         renderWalkthroughStep();
+      });
+    } else if (currentLesson.type === 'game') {
+      stepIndex = 0;
+      lessonGame = new GoGame(currentLesson.boardSize || 9, currentLesson.komi || 0);
+      requestAnimationFrame(() => {
+        lessonBoardView.resize(lessonGame.size);
+        renderGameStep();
       });
     } else {
       setupPractice();
@@ -187,17 +198,89 @@
     backStepBtn.disabled = stepIndex === 0;
   }
 
+  // ---------- Recorded game replay ----------
+  //
+  // A game lesson stores only its move list, and the board for any step is
+  // rebuilt by replaying those moves through the real engine. That keeps a
+  // 60-move record compact to author, makes captures happen for real rather
+  // than being hand-drawn into a snapshot, and means an illegal move in a
+  // record cannot silently render as a plausible-looking board — it is
+  // caught by the same rules a played game runs under.
+  //
+  // Steps are: 0 = empty board with the intro, 1..N = the position after
+  // that many moves (captioned with that move's commentary), and a final
+  // step showing the finished position with territory shaded.
+
+  function gameStepTotal() {
+    return currentLesson.moves.length + 2; // intro + every move + summary
+  }
+
+  function renderGameStep() {
+    const moves = currentLesson.moves;
+    const shown = Math.min(Math.max(stepIndex, 0), moves.length);
+    const isIntro = stepIndex === 0;
+    const isSummary = stepIndex === moves.length + 1;
+
+    // Replaying from the start on every step keeps back/forward navigation
+    // trivially correct — there is no incremental undo state to get wrong.
+    lessonGame = new GoGame(currentLesson.boardSize || 9, currentLesson.komi || 0);
+    for (let i = 0; i < shown; i++) {
+      if (moves[i].pass) lessonGame.pass();
+      else lessonGame.playMove(moves[i].row, moves[i].col);
+    }
+
+    const current = shown > 0 ? moves[shown - 1] : null;
+    lessonBoardView.render(lessonGame, {
+      markers: isIntro || isSummary ? currentLesson.markers : current && current.markers,
+      // Only a game played to its end has meaningful territory to shade; an
+      // opening study would just shade whatever happens to be enclosed so far
+      // and read as a score that isn't real yet.
+      showTerritory: isSummary && !!currentLesson.showFinalTerritory,
+      showLastMove: !isIntro,
+    });
+
+    if (isIntro) {
+      lessonProgressEl.textContent = currentLesson.title;
+      lessonCaptionEl.textContent = currentLesson.intro;
+    } else if (isSummary) {
+      lessonProgressEl.textContent = 'Final position';
+      lessonCaptionEl.textContent = currentLesson.summary;
+    } else {
+      // Moves alternate from Black, so the colour follows from the index —
+      // a pass is still a turn, so this holds across one.
+      const colorName = shown % 2 === 1 ? 'Black' : 'White';
+      const label = current.pass ? `${colorName} passes` : colorName;
+      lessonProgressEl.textContent = `Move ${shown} / ${moves.length} — ${label}`;
+      lessonCaptionEl.textContent = current.note;
+    }
+    lessonFeedbackEl.textContent = '';
+
+    const isLastStep = stepIndex === gameStepTotal() - 1;
+    nextStepBtn.textContent = (isLastStep && isLastLesson(currentLesson.id)) ? 'Finish' : 'Next';
+    setButtonsVisible({ back: true, next: true });
+    backStepBtn.disabled = stepIndex === 0;
+  }
+
+  function stepTotal() {
+    return currentLesson.type === 'game' ? gameStepTotal() : currentLesson.steps.length;
+  }
+
+  function renderStep() {
+    if (currentLesson.type === 'game') renderGameStep();
+    else renderWalkthroughStep();
+  }
+
   backStepBtn.addEventListener('click', () => {
     if (stepIndex > 0) {
       stepIndex--;
-      renderWalkthroughStep();
+      renderStep();
     }
   });
 
   nextStepBtn.addEventListener('click', () => {
-    if (stepIndex < currentLesson.steps.length - 1) {
+    if (stepIndex < stepTotal() - 1) {
       stepIndex++;
-      renderWalkthroughStep();
+      renderStep();
     } else {
       advanceToNextLesson();
     }
