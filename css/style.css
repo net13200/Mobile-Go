@@ -606,6 +606,9 @@ html, body {
 #lesson-text {
   padding: 0 18px 12px;
   flex-shrink: 0;
+  max-height: 34vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   text-align: center;
 }
 #lesson-caption {

@@ -113,26 +113,20 @@
     currentLesson = found.lesson;
     showScreen(lessonScreen);
 
+    // Each render*Step function sets its own text and resizes the board to
+    // match, so this rAF just needs to wait one frame for the now-visible
+    // lesson screen to actually be laid out before the first measurement.
     if (currentLesson.type === 'walkthrough') {
       stepIndex = 0;
       lessonGame = new GoGame(currentLesson.boardSize || 9, 0);
-      requestAnimationFrame(() => {
-        lessonBoardView.resize(lessonGame.size);
-        renderWalkthroughStep();
-      });
+      requestAnimationFrame(renderWalkthroughStep);
     } else if (currentLesson.type === 'game') {
       stepIndex = 0;
       lessonGame = new GoGame(currentLesson.boardSize || 9, currentLesson.komi || 0);
-      requestAnimationFrame(() => {
-        lessonBoardView.resize(lessonGame.size);
-        renderGameStep();
-      });
+      requestAnimationFrame(renderGameStep);
     } else {
       setupPractice();
-      requestAnimationFrame(() => {
-        lessonBoardView.resize(lessonGame.size);
-        renderPractice();
-      });
+      requestAnimationFrame(renderPractice);
     }
   }
 
@@ -183,14 +177,20 @@
     const step = currentLesson.steps[stepIndex];
     lessonGame.loadPosition(step.stones, BLACK);
     if (step.lastMove) lessonGame.lastMove = step.lastMove;
+
+    // Caption length varies step to step, which changes how much height
+    // #lesson-text takes and therefore how much is left for the board. Set
+    // the text first so the resize below measures the real, current layout
+    // rather than sizing the canvas for whatever the previous step needed.
+    lessonCaptionEl.textContent = step.caption;
+    lessonFeedbackEl.textContent = '';
+    lessonProgressEl.textContent = `Step ${stepIndex + 1}/${currentLesson.steps.length}`;
+    lessonBoardView.resize(lessonGame.size);
     lessonBoardView.render(lessonGame, {
       markers: step.markers,
       showTerritory: !!step.showTerritory,
       showLastMove: true,
     });
-    lessonCaptionEl.textContent = step.caption;
-    lessonFeedbackEl.textContent = '';
-    lessonProgressEl.textContent = `Step ${stepIndex + 1}/${currentLesson.steps.length}`;
 
     const isLastStep = stepIndex === currentLesson.steps.length - 1;
     nextStepBtn.textContent = (isLastStep && isLastLesson(currentLesson.id)) ? 'Finish' : 'Next';
@@ -230,15 +230,11 @@
     }
 
     const current = shown > 0 ? moves[shown - 1] : null;
-    lessonBoardView.render(lessonGame, {
-      markers: isIntro || isSummary ? currentLesson.markers : current && current.markers,
-      // Only a game played to its end has meaningful territory to shade; an
-      // opening study would just shade whatever happens to be enclosed so far
-      // and read as a score that isn't real yet.
-      showTerritory: isSummary && !!currentLesson.showFinalTerritory,
-      showLastMove: !isIntro,
-    });
 
+    // Commentary length varies a lot between a one-line move note and the
+    // multi-sentence intro/summary, which changes how much of the screen
+    // #lesson-text takes. Set the text first so resize() measures the real,
+    // current layout instead of sizing the canvas for the previous step.
     if (isIntro) {
       lessonProgressEl.textContent = currentLesson.title;
       lessonCaptionEl.textContent = currentLesson.intro;
@@ -254,6 +250,15 @@
       lessonCaptionEl.textContent = current.note;
     }
     lessonFeedbackEl.textContent = '';
+    lessonBoardView.resize(lessonGame.size);
+    lessonBoardView.render(lessonGame, {
+      markers: isIntro || isSummary ? currentLesson.markers : current && current.markers,
+      // Only a game played to its end has meaningful territory to shade; an
+      // opening study would just shade whatever happens to be enclosed so far
+      // and read as a score that isn't real yet.
+      showTerritory: isSummary && !!currentLesson.showFinalTerritory,
+      showLastMove: !isIntro,
+    });
 
     const isLastStep = stepIndex === gameStepTotal() - 1;
     nextStepBtn.textContent = (isLastStep && isLastLesson(currentLesson.id)) ? 'Finish' : 'Next';
@@ -297,11 +302,14 @@
   }
 
   function renderPractice() {
-    lessonBoardView.render(lessonGame, { markers: currentLesson.markers, showLastMove: true });
+    // Set the goal text first (see renderWalkthroughStep for why) so the
+    // resize below measures the layout with this lesson's actual text height.
     lessonCaptionEl.textContent = currentLesson.goal;
     lessonFeedbackEl.textContent = '';
     lessonFeedbackEl.classList.remove('error');
     lessonProgressEl.textContent = currentLesson.title;
+    lessonBoardView.resize(lessonGame.size);
+    lessonBoardView.render(lessonGame, { markers: currentLesson.markers, showLastMove: true });
     continueBtn.textContent = isLastLesson(currentLesson.id) ? 'Finish' : 'Next';
     setButtonsVisible({
       hint: !!(currentLesson.hints && currentLesson.hints.length),
