@@ -831,8 +831,8 @@ const TUTORIAL_MODULES = [
 
       // ---- 13x13 -----------------------------------------------------------
       // A complete game built around the 3-3 invasion under a 4-4 stone.
-      // Verified against the engine: all 67 moves legal, final position fully
-      // sealed, scoring B 58 to W 45 + 6.5 komi = 51.5.
+      // Verified against the engine: all 69 moves legal, final position fully
+      // sealed, scoring B 54 to W 47 + 6.5 komi = 53.5.
       //
       // The corner's exact shape matters here, not just its rough size. The
       // first version of this game stopped the corner exchange one move too
@@ -847,13 +847,33 @@ const TUTORIAL_MODULES = [
       // unconditionally alive. The lesson is folded into the commentary
       // below rather than removed: a shape that looks like a finished
       // corner joseki can still be one move short of actually living.
+      //
+      // A second, separate bug was found the same way while auditing the
+      // rest of this game after the first fix: the original top-right
+      // endgame sequence had Black jump a space out to (1,9) rather than
+      // stay connected, then hane to (0,10) — a thin, disconnected shape
+      // boxed in by White on three sides that an exhaustive search proved
+      // was capturable outright, regardless of Black's reply. Every group
+      // on the final board (both colours, via lifeDeathChecks / an offline
+      // full-board audit using tools/lifedeath.js) is now confirmed either
+      // unconditionally alive or too large an open territory to be a real
+      // risk. Fixing it changed the final margin from 6.5 to 0.5 — proof
+      // that a single unread local shape can be worth far more than it looks.
       {
         id: 'game-13', title: 'A Full Game: 13×13', type: 'game', boardSize: 13, komi: 6.5,
-        showFinalTerritory: true, finalScore: { black: 58, white: 51.5 },
-        // Regression guard for the exact bug described above: verify-lessons.js
-        // exhaustively checks this group is genuinely unconditionally alive
-        // (not just currently uncaptured) right after the vital-point move.
-        lifeDeathChecks: [{ afterMove: 20, seed: { row: 2, col: 2 }, label: 'White corner group' }],
+        showFinalTerritory: true, finalScore: { black: 54, white: 53.5 },
+        // Regression guard for the exact corner bug described above:
+        // verify-lessons.js exhaustively checks this group is genuinely
+        // unconditionally alive (not just currently uncaptured) right after
+        // the vital-point move.
+        lifeDeathChecks: [
+          { afterMove: 20, seed: { row: 2, col: 2 }, label: 'White corner group' },
+          // Regression guard for the second bug described above: Black's
+          // group here was capturable outright in the original (disconnected
+          // hane) version of this exchange. Checked right after move 51,
+          // before either side's later "free" moves elsewhere.
+          { afterMove: 51, seed: { row: 1, col: 8 }, color: 'black', label: 'Black top-right group' },
+        ],
         intro: 'A complete teaching game on 13×13, built around the single most important trade in Go: territory now, or a wall that makes territory later. White invades a corner and lives there; Black lets him, and takes an outside wall in exchange. Watch what that wall is worth by the end.',
         moves: [
           M(3, 3, 'Black starts on a corner star point — the 4-4. A stone here claims the corner loosely while facing outward, toward the rest of the board.'),
@@ -902,11 +922,13 @@ const TUTORIAL_MODULES = [
           M(3, 8, 'White pushes once more, joining all the way back to his top-right corner stone.'),
           M(2, 8, 'Black blocks. Two solid walls now face each other along rows 2 and 3.'),
           M(2, 9, 'White blocks Black’s wall from running any further right.'),
-          M(1, 9, 'Black slides along row 1, reducing White’s corner from the top.'),
-          M(1, 10, 'White blocks.'),
-          M(0, 10, 'Black hanes on the very edge. First-line moves are small, but in a close endgame they decide games.'),
-          M(0, 11, 'White blocks.'),
-          M(0, 9, 'Black connects. Without this, his edge stone was in atari and would simply have been captured.'),
+          M(1, 8, 'Black slides along row 1 — but stays directly connected to his own wall rather than jumping a space ahead. A loose jump here would leave an isolated stone with too little room to live if White fought back properly; connected is simply safe.'),
+          M(1, 9, 'White blocks, connecting straight back to his own group.'),
+          M(0, 8, 'Black takes the corner point, closing off a small pocket of territory along the very top.'),
+          M(0, 9, 'White takes the point beside it, drawing his own side of the boundary.'),
+          M(12, 1, 'With nothing urgent left in that corner, Black banks a point along the bottom edge instead — the boundary down there is still wide open.'),
+          M(1, 10, 'White extends once more, reaching further along the top to close off the whole upper-right corner as territory.'),
+          M(11, 2, 'Black takes one more point nearby before turning back to finish the boundary elsewhere.'),
           M(6, 8, 'White fills the gap in his centre wall, removing a point where Black could have cut.'),
           M(3, 4, 'Black blocks White’s top wall from pushing any further left.'),
           M(4, 9, 'White seals the right-hand edge of his framework.'),
@@ -924,7 +946,7 @@ const TUTORIAL_MODULES = [
           PASS('White has no move left anywhere that gains him a point. Playing inside his own territory would only fill a point he already owns — under territory scoring that costs him a point. So he passes. Knowing when there is nothing left to play is part of the endgame.'),
           M(12, 8, 'Black fills the final boundary point. Both players now pass, and the game is counted.'),
         ],
-        summary: 'Black has 58 points; White has 45 plus 6.5 komi, for 51.5. Black wins by 6.5. Now look back at moves 19–20. White took roughly six points of corner territory, but only became truly, unconditionally alive after the extra move at the vital point — the shape wasn’t finished the moment it looked finished. Black took a four-stone wall in exchange, and that wall is the reason Black’s bottom and left grew so large, and the reason White’s reductions along rows 3 and 9 never broke through anywhere. The trade — a small living corner against outside strength — is the main lesson here, but the smaller one matters too: check that a corner is actually alive before you rely on it, not just that it looks like one you’ve seen before.',
+        summary: 'Black has 54 points; White has 47 plus 6.5 komi, for 53.5. Black wins by half a point. Two things decided a game this close. Look back at moves 19–20: White took roughly six points of corner territory, but only became truly, unconditionally alive after the extra move at the vital point — the shape wasn’t finished the moment it looked finished. And look at the top-right, where Black stayed connected along row 1 rather than jumping loose and hane-ing into a corner with no room to live — a tempting extra point that a real read-out shows simply isn’t there. The trade — a small living corner against outside strength — is the main lesson here, but the smaller one matters just as much: check that a shape is actually alive before you rely on it, not just that it looks like one you’ve seen before. In a half-point game, one unread local shape is the whole margin.',
       },
 
       // ---- 19x19 -----------------------------------------------------------
