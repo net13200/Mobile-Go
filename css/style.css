@@ -154,6 +154,16 @@ html, body {
   gap: 10px;
 }
 
+.three-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.three-options .opt-btn {
+  padding: 13px 4px;
+  font-size: 0.85rem;
+}
+
 .opt-btn {
   display: flex;
   align-items: center;
@@ -322,13 +332,25 @@ html, body {
   box-shadow: 0 6px 24px rgba(0,0,0,0.4);
 }
 
-#game-controls {
+#game-controls,
+#spectate-controls {
   display: flex;
   gap: 10px;
   padding: 10px 14px;
   background: var(--panel);
   border-top: 1px solid var(--panel-border);
   flex-shrink: 0;
+}
+
+#spectate-speed-select {
+  flex: 1;
+  padding: 13px 8px;
+  border-radius: 12px;
+  border: 2px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .ctrl-btn {

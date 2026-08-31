@@ -2,9 +2,16 @@
 // "What's New" screen. Bump APP_VERSION and add an entry (newest first)
 // whenever a change is worth telling a returning player about.
 
-const APP_VERSION = '0.8.2';
+const APP_VERSION = '0.9.0';
 
 const RELEASE_NOTES = [
+  {
+    version: '0.9.0',
+    date: '2026-08-30',
+    notes: [
+      'Added an "AI vs AI" mode — pick a difficulty for each side and watch two computer players play each other, with pause, single-step, and playback speed controls.',
+    ],
+  },
   {
     version: '0.8.2',
     date: '2026-08-30',

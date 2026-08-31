@@ -18,6 +18,13 @@
   const aiOptions = document.getElementById('ai-options');
   const handicapSelect = document.getElementById('handicap-select');
 
+  const spectateOptions = document.getElementById('spectate-options');
+  const spectateDiffButtons = [...document.querySelectorAll('.opt-btn[data-spectate-difficulty]')];
+  const spectateControls = document.getElementById('spectate-controls');
+  const spectatePauseBtn = document.getElementById('spectate-pause-btn');
+  const spectateStepBtn = document.getElementById('spectate-step-btn');
+  const spectateSpeedSelect = document.getElementById('spectate-speed-select');
+
   const canvas = document.getElementById('board-canvas');
   const boardWrap = document.getElementById('board-wrap');
   const mainBoardView = createBoardView(canvas, { container: boardWrap });
@@ -66,6 +73,17 @@
   let aiThinking = false;
   let aiTimer = null;
 
+  // Spectate ("AI vs AI") state. spectateSelected mirrors vsComputer's role
+  // at setup time; spectating is the per-game value captured at start,
+  // exactly like aiColor is derived from playerColor in startGame().
+  let spectateSelected = false;
+  let spectating = false;
+  let spectateBlackDifficulty = 'easy';
+  let spectateWhiteDifficulty = 'easy';
+  let spectatePaused = false;
+  let spectateStepOnce = false; // advance exactly one move, then re-pause
+  let spectateSpeedMultiplier = 1;
+
   // Easy answers in ~8ms, so its full delay is an artificial pause to feel
   // considered. Medium's own search already takes real time (tens to a
   // couple hundred ms), so it gets a shorter pause on top rather than
@@ -87,16 +105,37 @@
     btn.addEventListener('click', () => {
       opponentButtons.forEach((b) => b.classList.remove('selected'));
       btn.classList.add('selected');
-      vsComputer = btn.dataset.opponent === 'ai';
+      const opponent = btn.dataset.opponent;
+      vsComputer = opponent === 'ai';
+      spectateSelected = opponent === 'spectate';
       aiOptions.classList.toggle('hidden', !vsComputer);
+      spectateOptions.classList.toggle('hidden', !spectateSelected);
       if (!vsComputer) {
         handicapSelect.value = '0';
         handicap = 0;
         komiInput.value = '6.5';
+      }
+      if (opponent === 'human') {
         difficultyButtons.forEach((b) => b.classList.toggle('selected', b.dataset.difficulty === 'easy'));
         aiDifficulty = 'easy';
       }
     });
+  });
+
+  spectateDiffButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const color = btn.dataset.spectateColor;
+      spectateDiffButtons
+        .filter((b) => b.dataset.spectateColor === color)
+        .forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      if (color === 'black') spectateBlackDifficulty = btn.dataset.spectateDifficulty;
+      else spectateWhiteDifficulty = btn.dataset.spectateDifficulty;
+    });
+  });
+
+  spectateSpeedSelect.addEventListener('change', () => {
+    spectateSpeedMultiplier = parseFloat(spectateSpeedSelect.value) || 1;
   });
 
   colorButtons.forEach((btn) => {
@@ -182,7 +221,10 @@
 
   function startGame(size, komi) {
     game = new GoGame(size, komi);
+    spectating = spectateSelected;
     aiColor = vsComputer ? (playerColor === BLACK ? WHITE : BLACK) : null;
+    spectatePaused = false;
+    spectateStepOnce = false;
     cancelPendingAI();
 
     // Handicap: Black's stones go down first and White opens the game.
@@ -195,7 +237,8 @@
     gameScreen.classList.add('active');
     resultModal.classList.add('hidden');
     scoringBanner.classList.add('hidden');
-    document.getElementById('game-controls').classList.remove('hidden');
+    document.getElementById('game-controls').classList.toggle('hidden', spectating);
+    spectateControls.classList.toggle('hidden', !spectating);
     liveScoreVisible = false;
     liveScorePanel.classList.add('hidden');
     scoreToggleBtn.classList.remove('active');
@@ -210,8 +253,15 @@
   // ---------- Computer opponent ----------
 
   function isAITurn() {
-    return !!game && aiColor !== null && !game.gameOver && !game.scoringPhase &&
-      game.currentPlayer === aiColor;
+    return !!game && !game.gameOver && !game.scoringPhase &&
+      (spectating || (aiColor !== null && game.currentPlayer === aiColor));
+  }
+
+  // In spectate mode both sides are AI, each with its own difficulty; in
+  // vs-computer mode there's one fixed difficulty for the single AI seat.
+  function currentAiDifficulty() {
+    if (spectating) return game.currentPlayer === BLACK ? spectateBlackDifficulty : spectateWhiteDifficulty;
+    return aiDifficulty;
   }
 
   function cancelPendingAI() {
@@ -221,15 +271,25 @@
 
   function maybeStartAITurn() {
     if (!isAITurn() || aiThinking) return;
+    // Paused spectating waits for Resume or a single Step, not a timer.
+    if (spectating && spectatePaused && !spectateStepOnce) return;
+
     aiThinking = true;
     updateHud();
+    const difficulty = currentAiDifficulty();
+    const baseDelay = AI_DELAY_MS[difficulty];
+    // Spectating has its own speed control layered on top of the same
+    // per-difficulty base delay used for a human's opponent.
+    const delay = spectating ? Math.max(30, Math.round(baseDelay * spectateSpeedMultiplier)) : baseDelay;
+
     aiTimer = setTimeout(() => {
       aiTimer = null;
       // The game may have been abandoned or undone while we waited.
       if (!isAITurn()) { aiThinking = false; updateHud(); return; }
 
-      const chooseFn = aiDifficulty === 'medium' ? GoAI.chooseMediumMove : GoAI.chooseMove;
-      const move = chooseFn(game, aiColor);
+      const chooseFn = difficulty === 'medium' ? GoAI.chooseMediumMove : GoAI.chooseMove;
+      const color = game.currentPlayer;
+      const move = chooseFn(game, color);
       if (move === null) {
         game.pass();
       } else {
@@ -243,11 +303,29 @@
       renderMain();
       updateHud();
       updateLiveScorePanel();
+
       if (game.scoringPhase) {
-        scoringBanner.classList.remove('hidden');
-        updateLiveScore();
+        // A spectated game has no human to mark dead groups, and both AIs
+        // only ever pass once the position is already tactically settled
+        // (see go-ai.js's pass logic) — so score it immediately rather than
+        // showing a "tap groups to mark them dead" banner nobody can use.
+        if (spectating) {
+          finishScoring();
+        } else {
+          scoringBanner.classList.remove('hidden');
+          updateLiveScore();
+        }
+      } else if (spectating && spectateStepOnce) {
+        spectateStepOnce = false;
+        spectatePaused = true;
+        updateHud();
+      } else {
+        // No-op for vs-computer (isAITurn() is now false, it's the human's
+        // turn) — this is what actually drives spectate mode's second AI
+        // seat to keep moving without any external trigger.
+        maybeStartAITurn();
       }
-    }, AI_DELAY_MS[aiDifficulty]);
+    }, delay);
   }
 
   function backToSetup() {
@@ -282,6 +360,7 @@
 
   mainBoardView.onIntersectionClick((row, col) => {
     if (!game || game.gameOver) return;
+    if (spectating) return; // spectator board is never clickable
     if (aiThinking || isAITurn()) return; // not your turn
 
     if (game.scoringPhase) {
@@ -386,7 +465,7 @@
     maybeStartAITurn();
   });
 
-  finishScoringBtn.addEventListener('click', () => {
+  function finishScoring() {
     if (!game) return;
     const score = game.computeScore();
     game.gameOver = true;
@@ -394,6 +473,22 @@
     game.winner = score.winner;
     game.finalScore = score;
     showResult();
+  }
+
+  finishScoringBtn.addEventListener('click', finishScoring);
+
+  spectatePauseBtn.addEventListener('click', () => {
+    if (!spectating || !game || game.gameOver) return;
+    spectatePaused = !spectatePaused;
+    if (spectatePaused) cancelPendingAI();
+    else maybeStartAITurn();
+    updateHud();
+  });
+
+  spectateStepBtn.addEventListener('click', () => {
+    if (!spectating || !game || !spectatePaused || aiThinking) return;
+    spectateStepOnce = true;
+    maybeStartAITurn();
   });
 
   keepReviewingBtn.addEventListener('click', () => {
@@ -441,6 +536,12 @@
       turnText.textContent = 'Game over';
     } else if (game.scoringPhase) {
       turnText.textContent = 'Scoring';
+    } else if (spectating) {
+      const diffLabel = currentAiDifficulty() === 'medium' ? 'Medium' : 'Easy';
+      const colorName = isBlack ? 'Black' : 'White';
+      if (spectatePaused) turnText.textContent = `Paused — ${colorName} (${diffLabel}) to move`;
+      else if (aiThinking) turnText.textContent = `${colorName} (${diffLabel}) thinking…`;
+      else turnText.textContent = `${colorName} (${diffLabel}) to move`;
     } else if (aiThinking) {
       turnText.textContent = 'Computer thinking…';
     } else if (aiColor !== null) {
@@ -455,6 +556,12 @@
     undoBtn.disabled = game.moveLog.length === 0 || game.gameOver || awaitingAI;
     passBtn.disabled = game.gameOver || game.scoringPhase || awaitingAI;
     resignBtn.disabled = game.gameOver;
+
+    if (spectating) {
+      spectatePauseBtn.textContent = spectatePaused ? 'Resume' : 'Pause';
+      spectatePauseBtn.disabled = game.gameOver;
+      spectateStepBtn.disabled = game.gameOver || game.scoringPhase || !spectatePaused || aiThinking;
+    }
 
     if (game.scoringPhase) {
       scoringBanner.classList.remove('hidden');

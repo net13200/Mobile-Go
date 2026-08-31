@@ -50,9 +50,10 @@
 
       <div class="setup-group">
         <label>Opponent</label>
-        <div class="two-options">
+        <div class="three-options">
           <button class="opt-btn selected" data-opponent="human">Two Players</button>
           <button class="opt-btn" data-opponent="ai">vs Computer</button>
+          <button class="opt-btn" data-opponent="spectate">AI vs AI</button>
         </div>
       </div>
 
@@ -79,6 +80,19 @@
           <option value="8">8 stones</option>
           <option value="9">9 stones</option>
         </select>
+      </div>
+
+      <div class="setup-group hidden" id="spectate-options">
+        <label>Black plays</label>
+        <div class="two-options">
+          <button class="opt-btn selected" data-spectate-color="black" data-spectate-difficulty="easy"><i class="dot black"></i>Easy</button>
+          <button class="opt-btn" data-spectate-color="black" data-spectate-difficulty="medium"><i class="dot black"></i>Medium</button>
+        </div>
+        <label>White plays</label>
+        <div class="two-options">
+          <button class="opt-btn selected" data-spectate-color="white" data-spectate-difficulty="easy"><i class="dot white"></i>Easy</button>
+          <button class="opt-btn" data-spectate-color="white" data-spectate-difficulty="medium"><i class="dot white"></i>Medium</button>
+        </div>
       </div>
 
       <div class="setup-group">
@@ -188,6 +202,16 @@
       <button id="undo-btn" class="ctrl-btn" disabled>Undo</button>
       <button id="pass-btn" class="ctrl-btn">Pass</button>
       <button id="resign-btn" class="ctrl-btn danger">Resign</button>
+    </footer>
+
+    <footer id="spectate-controls" class="hidden">
+      <button id="spectate-pause-btn" class="ctrl-btn">Pause</button>
+      <button id="spectate-step-btn" class="ctrl-btn" disabled>Step</button>
+      <select id="spectate-speed-select" aria-label="Playback speed">
+        <option value="1.6">Slow</option>
+        <option value="1" selected>Normal</option>
+        <option value="0.3">Fast</option>
+      </select>
     </footer>
   </section>
 
