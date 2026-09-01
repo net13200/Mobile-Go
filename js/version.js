@@ -2,9 +2,16 @@
 // "What's New" screen. Bump APP_VERSION and add an entry (newest first)
 // whenever a change is worth telling a returning player about.
 
-const APP_VERSION = '0.9.0';
+const APP_VERSION = '0.9.1';
 
 const RELEASE_NOTES = [
+  {
+    version: '0.9.1',
+    date: '2026-09-01',
+    notes: [
+      'Medium computer opponent: fixed a weakness where it could let a large group quietly run out of room and be captured wholesale, found by analyzing 100 self-played games.',
+    ],
+  },
   {
     version: '0.9.0',
     date: '2026-08-30',

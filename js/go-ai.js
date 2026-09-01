@@ -16,6 +16,20 @@ const GoAI = (function () {
     selfAtari: -30,       // leaving the new group on one liberty
     liberty: 1.5,         // per liberty of the resulting group (capped)
     libertyCap: 6,
+    // Used only in leafScore (searched-line evaluation), not in evaluate()'s
+    // per-move ranking: a group at two liberties reads as no more urgent
+    // than one sitting comfortably at six, so a large group can be walked
+    // down to two liberties over many moves with nothing telling a searched
+    // line that it's dangerous, only to find true atari one move too late
+    // to escape within the search horizon. This scores that one liberty
+    // early at reduced strength, for groups of real size only — a 2-3 stone
+    // group at two liberties is ordinary and not worth flagging.
+    // (Deliberately not folded into evaluate()/rankMoves — trying that
+    // regressed Medium's measured strength on 13x13, because it competes
+    // with genuinely better moves for the search's limited top-K candidate
+    // slots there; leafScore only judges lines the search already picked.)
+    nearAtariFactor: 0.35,
+    nearAtariMinSize: 4,
     nearLastMove: 6,      // keep play local rather than scattering
     nearAnyStone: 2,
     starPoint: 8,         // opening: take the big points
@@ -375,7 +389,11 @@ const GoAI = (function () {
       for (const s of group.stones) seen.add(s);
       const sign = c === rootColor ? 1 : -1;
       libertyScore += sign * Math.min(group.liberties.size, WEIGHTS.libertyCap);
-      if (group.liberties.size === 1) atariScore -= sign * group.stones.size;
+      if (group.liberties.size === 1) {
+        atariScore -= sign * group.stones.size;
+      } else if (group.liberties.size === 2 && group.stones.size >= WEIGHTS.nearAtariMinSize) {
+        atariScore -= sign * group.stones.size * WEIGHTS.nearAtariFactor;
+      }
     }
 
     const captureDiff = game.captures[rootColor] - game.captures[opp];

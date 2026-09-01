@@ -2,7 +2,7 @@
 //
 // There is no build step, so bump CACHE_VERSION whenever any cached file
 // changes — that is what makes installed copies pick up a new release.
-const CACHE_VERSION = 'go-v12';
+const CACHE_VERSION = 'go-v13';
 
 // Paths are relative so the app works from a project subpath (e.g. GitHub
 // Pages at /Mobile-Go/) as well as from a domain root.
